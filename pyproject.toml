@@ -1,0 +1,115 @@
+[build-system]
+requires = ["setuptools>=61.0", "pybind11>=2.10.0", "cmake>=3.20"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "photon-mlir"
+version = "0.1.0"
+description = "MLIR-based compiler for silicon photonic neural network accelerators"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Daniel Schmidt", email = "daniel@terragon.dev"}
+]
+maintainers = [
+    {name = "Daniel Schmidt", email = "daniel@terragon.dev"}
+]
+keywords = ["mlir", "photonics", "compiler", "neural-networks", "accelerators"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: C++",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Compilers",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.21.0",
+    "torch>=2.0.0",
+    "pybind11>=2.10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+]
+docs = [
+    "sphinx>=5.0.0",
+    "sphinx-rtd-theme>=1.2.0",
+    "myst-parser>=1.0.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-benchmark>=4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/photon-mlir-bridge"
+Documentation = "https://photon-mlir.readthedocs.io"
+Repository = "https://github.com/yourusername/photon-mlir-bridge.git"
+Issues = "https://github.com/yourusername/photon-mlir-bridge/issues"
+
+[project.scripts]
+photon-compile = "photon_mlir.cli:compile_main"
+photon-debug = "photon_mlir.cli:debug_main"
+photon-profile = "photon_mlir.cli:profile_main"
+
+[tool.setuptools.packages.find]
+where = ["python"]
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--cov=photon_mlir",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
