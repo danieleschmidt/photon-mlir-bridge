@@ -1,0 +1,397 @@
+# Clang-Tidy configuration for photon-mlir-bridge
+# Comprehensive static analysis for photonic computing compiler
+
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  google-*,
+  llvm-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  
+  # Disable specific checks that conflict with our style or are too noisy
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  -cert-dcl21-cpp,
+  -cert-dcl50-cpp,
+  -cert-dcl58-cpp,
+  -cert-oop57-cpp,
+  -cert-oop58-cpp,
+  -clang-analyzer-optin.performance.Padding,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-union-access,
+  -cppcoreguidelines-pro-type-vararg,
+  -google-build-using-namespace,
+  -google-readability-avoid-underscore-in-googletest-name,
+  -google-readability-todo,
+  -llvm-header-guard,
+  -llvm-include-order,
+  -misc-non-private-member-variables-in-classes,
+  -modernize-avoid-c-arrays,
+  -modernize-use-trailing-return-type,
+  -readability-avoid-const-params-in-decls,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -readability-named-parameter,
+  -readability-uppercase-literal-suffix
+
+# Specific configuration for checks
+CheckOptions:
+  # Naming conventions
+  readability-identifier-naming.AbstractClassCase: CamelCase
+  readability-identifier-naming.AbstractClassPrefix: ''
+  readability-identifier-naming.AbstractClassSuffix: ''
+  
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.ClassPrefix: ''
+  readability-identifier-naming.ClassSuffix: ''
+  
+  readability-identifier-naming.ClassConstantCase: CamelCase
+  readability-identifier-naming.ClassConstantPrefix: 'k'
+  readability-identifier-naming.ClassConstantSuffix: ''
+  
+  readability-identifier-naming.ClassMemberCase: camelBack
+  readability-identifier-naming.ClassMemberPrefix: ''
+  readability-identifier-naming.ClassMemberSuffix: '_'
+  
+  readability-identifier-naming.ConstantCase: CamelCase
+  readability-identifier-naming.ConstantPrefix: 'k'
+  readability-identifier-naming.ConstantSuffix: ''
+  
+  readability-identifier-naming.ConstantMemberCase: CamelCase
+  readability-identifier-naming.ConstantMemberPrefix: 'k'
+  readability-identifier-naming.ConstantMemberSuffix: ''
+  
+  readability-identifier-naming.ConstantParameterCase: camelBack
+  readability-identifier-naming.ConstantParameterPrefix: ''
+  readability-identifier-naming.ConstantParameterSuffix: ''
+  
+  readability-identifier-naming.ConstantPointerParameterCase: camelBack
+  readability-identifier-naming.ConstantPointerParameterPrefix: ''
+  readability-identifier-naming.ConstantPointerParameterSuffix: ''
+  
+  readability-identifier-naming.ConstexprFunctionCase: camelBack
+  readability-identifier-naming.ConstexprFunctionPrefix: ''
+  readability-identifier-naming.ConstexprFunctionSuffix: ''
+  
+  readability-identifier-naming.ConstexprMethodCase: camelBack
+  readability-identifier-naming.ConstexprMethodPrefix: ''
+  readability-identifier-naming.ConstexprMethodSuffix: ''
+  
+  readability-identifier-naming.ConstexprVariableCase: CamelCase
+  readability-identifier-naming.ConstexprVariablePrefix: 'k'
+  readability-identifier-naming.ConstexprVariableS8ffix: ''
+  
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.EnumPrefix: ''
+  readability-identifier-naming.EnumSuffix: ''
+  
+  readability-identifier-naming.EnumConstantCase: CamelCase
+  readability-identifier-naming.EnumConstantPrefix: 'k'
+  readability-identifier-naming.EnumConstantSuffix: ''
+  
+  readability-identifier-naming.FunctionCase: camelBack
+  readability-identifier-naming.FunctionPrefix: ''
+  readability-identifier-naming.FunctionSuffix: ''
+  
+  readability-identifier-naming.GlobalConstantCase: CamelCase
+  readability-identifier-naming.GlobalConstantPrefix: 'k'
+  readability-identifier-naming.GlobalConstantSuffix: ''
+  
+  readability-identifier-naming.GlobalConstantPointerCase: CamelCase
+  readability-identifier-naming.GlobalConstantPointerPrefix: 'k'
+  readability-identifier-naming.GlobalConstantPointerSuffix: ''
+  
+  readability-identifier-naming.GlobalFunctionCase: camelBack
+  readability-identifier-naming.GlobalFunctionPrefix: ''
+  readability-identifier-naming.GlobalFunctionSuffix: ''
+  
+  readability-identifier-naming.GlobalPointerCase: CamelCase
+  readability-identifier-naming.GlobalPointerPrefix: 'g'
+  readability-identifier-naming.GlobalPointerSuffix: ''
+  
+  readability-identifier-naming.GlobalVariableCase: CamelCase
+  readability-identifier-naming.GlobalVariablePrefix: 'g'
+  readability-identifier-naming.GlobalVariableSuffix: ''
+  
+  readability-identifier-naming.InlineNamespaceCase: lower_case
+  readability-identifier-naming.InlineNamespacePrefix: ''
+  readability-identifier-naming.InlineNamespaceSuffix: ''
+  
+  readability-identifier-naming.LocalConstantCase: camelBack
+  readability-identifier-naming.LocalConstantPrefix: ''
+  readability-identifier-naming.LocalConstantSuffix: ''
+  
+  readability-identifier-naming.LocalConstantPointerCase: camelBack
+  readability-identifier-naming.LocalConstantPointerPrefix: ''
+  readability-identifier-naming.LocalConstantPointerSuffix: ''
+  
+  readability-identifier-naming.LocalPointerCase: camelBack
+  readability-identifier-naming.LocalPointerPrefix: ''
+  readability-identifier-naming.LocalPointerSuffix: ''
+  
+  readability-identifier-naming.LocalVariableCase: camelBack
+  readability-identifier-naming.LocalVariablePrefix: ''
+  readability-identifier-naming.LocalVariableSuffix: ''
+  
+  readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
+  readability-identifier-naming.MacroDefinitionPrefix: ''
+  readability-identifier-naming.MacroDefinitionSuffix: ''
+  
+  readability-identifier-naming.MemberCase: camelBack
+  readability-identifier-naming.MemberPrefix: ''
+  readability-identifier-naming.MemberSuffix: '_'
+  
+  readability-identifier-naming.MethodCase: camelBack
+  readability-identifier-naming.MethodPrefix: ''
+  readability-identifier-naming.MethodSuffix: ''
+  
+  readability-identifier-naming.NamespaceCase: lower_case
+  readability-identifier-naming.NamespacePrefix: ''
+  readability-identifier-naming.NamespaceSuffix: ''
+  
+  readability-identifier-naming.ParameterCase: camelBack
+  readability-identifier-naming.ParameterPrefix: ''
+  readability-identifier-naming.ParameterSuffix: ''
+  
+  readability-identifier-naming.ParameterPackCase: camelBack
+  readability-identifier-naming.ParameterPackPrefix: ''
+  readability-identifier-naming.ParameterPackSuffix: ''
+  
+  readability-identifier-naming.PointerParameterCase: camelBack
+  readability-identifier-naming.PointerParameterPrefix: ''
+  readability-identifier-naming.PointerParameterSuffix: ''
+  
+  readability-identifier-naming.PrivateMemberCase: camelBack
+  readability-identifier-naming.PrivateMemberPrefix: ''
+  readability-identifier-naming.PrivateMemberSuffix: '_'
+  
+  readability-identifier-naming.PrivateMethodCase: camelBack
+  readability-identifier-naming.PrivateMethodPrefix: ''
+  readability-identifier-naming.PrivateMethodSuffix: ''
+  
+  readability-identifier-naming.ProtectedMemberCase: camelBack
+  readability-identifier-naming.ProtectedMemberPrefix: ''
+  readability-identifier-naming.ProtectedMemberSuffix: '_'
+  
+  readability-identifier-naming.ProtectedMethodCase: camelBack
+  readability-identifier-naming.ProtectedMethodPrefix: ''
+  readability-identifier-naming.ProtectedMethodSuffix: ''
+  
+  readability-identifier-naming.PublicMemberCase: camelBack
+  readability-identifier-naming.PublicMemberPrefix: ''
+  readability-identifier-naming.PublicMemberSuffix: '_'
+  
+  readability-identifier-naming.PublicMethodCase: camelBack
+  readability-identifier-naming.PublicMethodPrefix: ''
+  readability-identifier-naming.PublicMethodSuffix: ''
+  
+  readability-identifier-naming.ScopedEnumConstantCase: CamelCase
+  readability-identifier-naming.ScopedEnumConstantPrefix: 'k'
+  readability-identifier-naming.ScopedEnumConstantSuffix: ''
+  
+  readability-identifier-naming.StaticConstantCase: CamelCase
+  readability-identifier-naming.StaticConstantPrefix: 'k'
+  readability-identifier-naming.StaticConstantSuffix: ''
+  
+  readability-identifier-naming.StaticVariableCase: CamelCase
+  readability-identifier-naming.StaticVariablePrefix: 's'
+  readability-identifier-naming.StaticVariableSuffix: ''
+  
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.StructPrefix: ''
+  readability-identifier-naming.StructSuffix: ''
+  
+  readability-identifier-naming.TemplateParameterCase: CamelCase
+  readability-identifier-naming.TemplateParameterPrefix: ''
+  readability-identifier-naming.TemplateParameterSuffix: ''
+  
+  readability-identifier-naming.TemplateTemplateParameterCase: CamelCase
+  readability-identifier-naming.TemplateTemplateParameterPrefix: ''
+  readability-identifier-naming.TemplateTemplateParameterSuffix: ''
+  
+  readability-identifier-naming.TypeAliasCase: CamelCase
+  readability-identifier-naming.TypeAliasPrefix: ''
+  readability-identifier-naming.TypeAliasSuffix: ''
+  
+  readability-identifier-naming.TypedefCase: CamelCase
+  readability-identifier-naming.TypedefPrefix: ''
+  readability-identifier-naming.TypedefSuffix: ''
+  
+  readability-identifier-naming.TypeTemplateParameterCase: CamelCase
+  readability-identifier-naming.TypeTemplateParameterPrefix: ''
+  readability-identifier-naming.TypeTemplateParameterSuffix: ''
+  
+  readability-identifier-naming.UnionCase: CamelCase
+  readability-identifier-naming.UnionPrefix: ''
+  readability-identifier-naming.UnionSuffix: ''
+  
+  readability-identifier-naming.ValueTemplateParameterCase: camelBack
+  readability-identifier-naming.ValueTemplateParameterPrefix: ''
+  readability-identifier-naming.ValueTemplateParameterSuffix: ''
+  
+  readability-identifier-naming.VariableCase: camelBack
+  readability-identifier-naming.VariablePrefix: ''
+  readability-identifier-naming.VariableSuffix: ''
+  
+  readability-identifier-naming.VirtualMethodCase: camelBack
+  readability-identifier-naming.VirtualMethodPrefix: ''
+  readability-identifier-naming.VirtualMethodSuffix: ''
+
+  # Performance configurations
+  performance-unnecessary-value-param.AllowedTypes: 'std::shared_ptr;std::unique_ptr;std::function'
+  performance-move-const-arg.CheckTriviallyCopyableMove: false
+  
+  # Modernize configurations
+  modernize-loop-convert.MaxCopySize: 16
+  modernize-loop-convert.MinConfidence: reasonable
+  modernize-loop-convert.NamingStyle: CamelCase
+  
+  modernize-pass-by-value.IncludeStyle: llvm
+  modernize-pass-by-value.ValuesOnly: false
+  
+  modernize-replace-auto-ptr.IncludeStyle: llvm
+  
+  modernize-use-auto.MinTypeNameLength: 5
+  modernize-use-auto.RemoveStars: false
+  
+  modernize-use-default-member-init.UseAssignment: false
+  
+  modernize-use-emplace.ContainersWithPushBack: 'vector;list;deque'
+  modernize-use-emplace.TupleTypes: 'std::pair;std::tuple'
+  modernize-use-emplace.TupleMakeFunctions: 'std::make_pair;std::make_tuple'
+  
+  modernize-use-nullptr.NullMacros: 'NULL'
+  
+  # Readability configurations
+  readability-braces-around-statements.ShortStatementLines: 1
+  
+  readability-function-size.LineThreshold: 80
+  readability-function-size.StatementThreshold: 800
+  readability-function-size.BranchThreshold: 20
+  readability-function-size.ParameterThreshold: 10
+  readability-function-size.NestingThreshold: 4
+  readability-function-size.VariableThreshold: 40
+  
+  readability-implicit-bool-conversion.AllowIntegerConditions: true
+  readability-implicit-bool-conversion.AllowPointerConditions: true
+  
+  readability-inconsistent-declaration-parameter-name.IgnoreMacros: true
+  readability-inconsistent-declaration-parameter-name.Strict: false
+  
+  readability-simplify-boolean-expr.ChainedConditionalReturn: false
+  readability-simplify-boolean-expr.ChainedConditionalAssignment: false
+  
+  # Bugprone configurations
+  bugprone-argument-comment.StrictMode: false
+  bugprone-argument-comment.CommentBoolLiterals: true
+  bugprone-argument-comment.CommentIntegerLiterals: false
+  bugprone-argument-comment.CommentFloatLiterals: false
+  bugprone-argument-comment.CommentUserDefinedLiterals: false
+  bugprone-argument-comment.CommentStringLiterals: false
+  bugprone-argument-comment.CommentNullPtrs: false
+  bugprone-argument-comment.CommentCharacterLiterals: false
+  
+  # Google-specific configurations
+  google-readability-braces-around-statements.ShortStatementLines: 1
+  google-readability-function-size.StatementThreshold: 800
+  google-readability-namespace-comments.ShortNamespaceLines: 10
+  google-readability-namespace-comments.SpacesBeforeComments: 2
+  
+  # LLVM-specific configurations  
+  llvm-namespace-comment.ShortNamespaceLines: 1
+  llvm-namespace-comment.SpacesBeforeComments: 1
+
+# Header filter - only analyze our project headers
+HeaderFilterRegex: '^.*/(include|src)/photon/.*\.(h|hpp)$'
+
+# Exclude external dependencies and generated files
+ExcludeHeaderFilter: '^.*/((external|third_party|build)/.*)|(.*\.pb\.h)|(.*\.generated\.h)$'
+
+# Analysis type
+AnalyzeTemporaryDtors: false
+
+# System headers
+SystemHeaders: false
+
+# Format style for fix suggestions
+FormatStyle: file
+
+# Use color in diagnostics
+UseColor: true
+
+# Additional warnings for photonic computing specific code
+WarningsAsErrors: >
+  performance-*,
+  bugprone-use-after-move,
+  bugprone-dangling-handle,
+  cert-dcl21-cpp,
+  cert-dcl50-cpp,
+  cert-env33-c,
+  cert-flp30-c,
+  cert-msc50-cpp,
+  cert-msc51-cpp,
+  cppcoreguidelines-interfaces-global-init,
+  cppcoreguidelines-narrowing-conversions,
+  cppcoreguidelines-no-malloc,
+  cppcoreguidelines-slicing,
+  google-build-explicit-make-pair,
+  google-build-namespaces,
+  google-explicit-constructor,
+  google-runtime-operator,
+  misc-definitions-in-headers,
+  misc-misplaced-const,
+  misc-new-delete-overloads,
+  misc-non-copyable-objects,
+  misc-throw-by-value-catch-by-reference,
+  misc-unconventional-assign-operator,
+  misc-uniqueptr-reset-release,
+  misc-unused-alias-decls,
+  misc-unused-using-decls,
+  modernize-avoid-bind,
+  modernize-deprecated-headers,
+  modernize-deprecated-ios-base-aliases,
+  modernize-make-shared,
+  modernize-make-unique,
+  modernize-raw-string-literal,
+  modernize-redundant-void-arg,
+  modernize-replace-random-shuffle,
+  modernize-return-braced-init-list,
+  modernize-shrink-to-fit,
+  modernize-unary-static-assert,
+  modernize-use-bool-literals,
+  modernize-use-equals-default,
+  modernize-use-equals-delete,
+  modernize-use-override,
+  readability-avoid-const-params-in-decls,
+  readability-container-size-empty,
+  readability-delete-null-pointer,
+  readability-deleted-default,
+  readability-misplaced-array-index,
+  readability-non-const-parameter,
+  readability-redundant-control-flow,
+  readability-redundant-declaration,
+  readability-redundant-function-ptr-dereference,
+  readability-redundant-smartptr-get,
+  readability-redundant-string-cstr,
+  readability-redundant-string-init,
+  readability-simplify-subscript-expr,
+  readability-static-accessed-through-instance,
+  readability-static-definition-in-anonymous-namespace,
+  readability-string-compare,
+  readability-uniqueptr-delete-release

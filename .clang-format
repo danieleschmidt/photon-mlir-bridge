@@ -1,0 +1,192 @@
+# Clang-Format configuration for photon-mlir-bridge
+# Based on LLVM style with photonic computing specific adjustments
+
+---
+Language: Cpp
+BasedOnStyle: LLVM
+
+# Indentation
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+ContinuationIndentWidth: 4
+IndentCaseLabels: true
+IndentGotoLabels: true
+IndentPPDirectives: BeforeHash
+IndentWrappedFunctionNames: false
+
+# Alignment
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveMacros: false
+AlignEscapedNewlines: Right
+AlignOperands: true
+AlignTrailingComments: true
+
+# Allow
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: false
+
+# Braces
+BreakBeforeBraces: Attach
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: false
+  AfterControlStatement: Never
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterStruct: false
+  AfterUnion: false
+  AfterExternBlock: false
+  BeforeCatch: false
+  BeforeElse: false
+  BeforeLambdaBody: false
+  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+
+# Breaking
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: MultiLine
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeConceptDeclarations: true
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+BreakStringLiterals: true
+
+# Column limit
+ColumnLimit: 80
+ReflowComments: true
+
+# Comments
+CommentPragmas: '^ IWYU pragma:'
+FixNamespaceComments: true
+
+# Formatting for specific constructs
+CompactNamespaces: false
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+ConstructorInitializerIndentWidth: 4
+Cpp11BracedListStyle: true
+
+# Empty lines
+KeepEmptyLinesAtTheStartOfBlocks: true
+MaxEmptyLinesToKeep: 1
+
+# Include sorting
+IncludeBlocks: Regroup
+IncludeCategories:
+  # Main header (photon-mlir-bridge headers)
+  - Regex: '^"photon/'
+    Priority: 1
+    SortPriority: 1
+  # Other project headers
+  - Regex: '^"[^/]*'
+    Priority: 2
+    SortPriority: 2
+  # MLIR headers
+  - Regex: '^<mlir/'
+    Priority: 3
+    SortPriority: 3
+  # LLVM headers
+  - Regex: '^<llvm/'
+    Priority: 4
+    SortPriority: 4
+  # System headers
+  - Regex: '^<[^/]*>'
+    Priority: 5
+    SortPriority: 5
+  # Everything else
+  - Regex: '.*'
+    Priority: 6
+    SortPriority: 6
+IncludeIsMainRegex: '(Test)?$'
+IncludeIsMainSourceRegex: ''
+SortIncludes: true
+SortUsingDeclarations: true
+
+# Namespace
+NamespaceIndentation: None
+
+# Penalties (for line breaking decisions)
+PenaltyBreakAssignment: 2
+PenaltyBreakBeforeFirstCallParameter: 19
+PenaltyBreakComment: 300
+PenaltyBreakFirstLessLess: 120
+PenaltyBreakString: 1000
+PenaltyBreakTemplateDeclaration: 10
+PenaltyExcessCharacter: 1000000
+PenaltyReturnTypeOnItsOwnLine: 60
+
+# Pointers and references
+PointerAlignment: Right
+ReferenceAlignment: Pointer
+DerivePointerAlignment: false
+
+# Spacing
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyBlock: false
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 1
+SpacesInAngles: false
+SpacesInConditionalStatement: false
+SpacesInContainerLiterals: true
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# Line endings
+UseCRLF: false
+
+# Macros and attributes
+AttributeMacros:
+  - __capability
+ForEachMacros:
+  - foreach
+  - Q_FOREACH
+  - BOOST_FOREACH
+IfMacros:
+  - KJ_IF_MAYBE
+MacroBlockBegin: ''
+MacroBlockEnd: ''
+StatementMacros:
+  - Q_UNUSED
+  - QT_REQUIRE_VERSION
+TypenameMacros:
+  - STACK_OF
+  - LIST
+
+# Modern C++ features
+Standard: c++20
+
+# Photonic computing specific patterns
+# Custom spacing for photonic-specific patterns
+SpaceBeforeJsonColon: false
+SpacesInJsonObjects: true
+
+# Additional formatting for MLIR tablegen-like constructs
+# (These are comments for reference, not actual clang-format options)
+# - Prefer consistent spacing in operation definitions
+# - Align attributes in tablegen-style definitions
+# - Keep photonic parameter groupings together
