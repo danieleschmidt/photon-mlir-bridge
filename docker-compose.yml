@@ -1,0 +1,280 @@
+# Docker Compose configuration for photon-mlir-bridge development
+
+version: '3.8'
+
+services:
+  # Main development environment
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: photon-mlir-dev
+    volumes:
+      - .:/workspace:cached
+      - ~/.ssh:/home/developer/.ssh:ro,cached
+      - ~/.gitconfig:/home/developer/.gitconfig:ro,cached
+      - dev-cache:/home/developer/.cache
+      - dev-local:/home/developer/.local
+    ports:
+      - "8080:8080"  # Debug server
+      - "8501:8501"  # Dashboard
+    environment:
+      - TERM=xterm-256color
+      - PHOTON_DEV_MODE=1
+      - PHOTON_LOG_LEVEL=DEBUG
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
+    command: /bin/bash
+
+  # CI/Testing environment
+  ci:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ci
+    container_name: photon-mlir-ci
+    volumes:
+      - .:/workspace:cached
+      - ci-coverage:/workspace/coverage
+    environment:
+      - CI=true
+      - COVERAGE=true
+      - PHOTON_TEST_MODE=1
+    working_dir: /workspace
+    command: ["ctest", "--output-on-failure", "--verbose"]
+
+  # Documentation server
+  docs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: docs
+    container_name: photon-mlir-docs
+    volumes:
+      - .:/workspace:cached
+      - docs-build:/workspace/docs/_build
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/workspace/python
+    working_dir: /workspace
+
+  # Production runtime
+  runtime:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: photon-mlir-runtime
+    volumes:
+      - ./models:/home/photon/models:ro
+      - ./outputs:/home/photon/outputs
+    environment:
+      - PHOTON_PRODUCTION_MODE=1
+      - PHOTON_LOG_LEVEL=INFO
+    working_dir: /home/photon
+
+  # Simulation environment
+  simulation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: simulation
+    container_name: photon-mlir-sim
+    volumes:
+      - ./models:/home/photon/models:ro
+      - ./simulation_results:/home/photon/results
+    ports:
+      - "8502:8502"  # Simulation dashboard
+    environment:
+      - PHOTON_SIMULATION_MODE=1
+      - PHOTON_HARDWARE_AVAILABLE=0
+      - PHOTON_LOG_LEVEL=INFO
+    working_dir: /home/photon/simulation
+
+  # GPU development environment (optional)
+  gpu-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: gpu-dev
+    container_name: photon-mlir-gpu-dev
+    volumes:
+      - .:/workspace:cached
+      - gpu-cache:/home/developer/.cache
+    ports:
+      - "8081:8080"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - PHOTON_GPU_ENABLED=1
+    runtime: nvidia
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
+    command: /bin/bash
+
+  # Database for experiment tracking (optional)
+  database:
+    image: postgres:15-alpine
+    container_name: photon-mlir-db
+    environment:
+      - POSTGRES_DB=photon_experiments
+      - POSTGRES_USER=photon
+      - POSTGRES_PASSWORD=photon_dev_password
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U photon -d photon_experiments"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for caching (optional)
+  cache:
+    image: redis:7-alpine
+    container_name: photon-mlir-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - cache-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Monitoring with Prometheus (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: photon-mlir-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+  # Grafana for visualization (optional)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: photon-mlir-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=photon_admin
+    depends_on:
+      - prometheus
+
+  # Jupyter notebook for experimentation
+  notebook:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: photon-mlir-notebook
+    volumes:
+      - .:/workspace:cached
+      - ./notebooks:/home/developer/notebooks
+      - notebook-data:/home/developer/.local
+    ports:
+      - "8888:8888"
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - PYTHONPATH=/workspace/python
+    working_dir: /home/developer/notebooks
+    command: >
+      bash -c "
+        python3.11 -m pip install --user jupyterlab ipywidgets &&
+        jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
+      "
+
+  # Hardware simulator with web interface
+  hardware-sim:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: simulation
+    container_name: photon-hardware-sim
+    volumes:
+      - ./simulation:/home/photon/simulation:cached
+      - sim-results:/home/photon/results
+    ports:
+      - "8503:8503"  # Web interface
+    environment:
+      - PHOTON_SIM_WEB_INTERFACE=1
+      - PHOTON_SIM_PORT=8503
+    working_dir: /home/photon/simulation
+    command: python3.11 -m photon_mlir.simulation.web_server
+
+volumes:
+  # Development volumes
+  dev-cache:
+    driver: local
+  dev-local:
+    driver: local
+  gpu-cache:
+    driver: local
+  
+  # Build volumes
+  ci-coverage:
+    driver: local
+  docs-build:
+    driver: local
+  
+  # Data volumes
+  db-data:
+    driver: local
+  cache-data:
+    driver: local
+  notebook-data:
+    driver: local
+  sim-results:
+    driver: local
+  
+  # Monitoring volumes
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  default:
+    name: photon-mlir-network
+    driver: bridge
+
+# Development profiles for different use cases
+x-development-profiles:
+  # Minimal development setup
+  minimal: &minimal
+    services: [dev]
+  
+  # Full development with monitoring
+  full: &full
+    services: [dev, docs, database, cache, prometheus, grafana]
+  
+  # CI/Testing setup
+  testing: &testing
+    services: [ci, database]
+  
+  # GPU development
+  gpu: &gpu
+    services: [gpu-dev, database, cache]
+  
+  # Research/experimentation
+  research: &research
+    services: [dev, notebook, simulation, database, grafana]
