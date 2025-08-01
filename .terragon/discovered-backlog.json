@@ -1,0 +1,323 @@
+[
+  {
+    "id": "security-secrets-scan",
+    "title": "Enhance secrets detection coverage",
+    "description": "Improve GitGuardian configuration and add custom patterns",
+    "category": "security",
+    "source": "security_audit",
+    "files": [
+      ".pre-commit-config.yaml",
+      ".gitignore"
+    ],
+    "estimated_effort": 0.5,
+    "impact_areas": [
+      "security"
+    ],
+    "raw_wsjf": {
+      "user_value": 7,
+      "time_criticality": 6,
+      "risk_reduction": 9,
+      "opportunity": 5
+    },
+    "raw_ice": {
+      "impact": 8,
+      "confidence": 9,
+      "ease": 9
+    },
+    "technical_debt": {
+      "debt_cost": 10,
+      "interest_rate": 0.12,
+      "hotspot_multiplier": 1.5
+    },
+    "wsjf_score": 54.0,
+    "ice_score": 648,
+    "technical_debt_score": 16.799999999999997,
+    "composite_score": 149.68
+  },
+  {
+    "id": "security-deps-python",
+    "title": "Update vulnerable Python dependencies",
+    "description": "Audit and update Python packages with known vulnerabilities",
+    "category": "security",
+    "source": "vulnerability_scan",
+    "files": [
+      "pyproject.toml",
+      "requirements*.txt"
+    ],
+    "estimated_effort": 1.0,
+    "impact_areas": [
+      "security",
+      "compliance"
+    ],
+    "raw_wsjf": {
+      "user_value": 8,
+      "time_criticality": 9,
+      "risk_reduction": 10,
+      "opportunity": 6
+    },
+    "raw_ice": {
+      "impact": 9,
+      "confidence": 8,
+      "ease": 6
+    },
+    "technical_debt": {
+      "debt_cost": 30,
+      "interest_rate": 0.15,
+      "hotspot_multiplier": 2.0
+    },
+    "wsjf_score": 33.0,
+    "ice_score": 432,
+    "technical_debt_score": 69.0,
+    "composite_score": 125.44
+  },
+  {
+    "id": "workflow-ci-activation",
+    "title": "Activate GitHub Actions CI workflows",
+    "description": "Convert workflow templates to active CI pipelines",
+    "category": "infrastructure",
+    "source": "workflow_analysis",
+    "files": [
+      ".github/workflows/"
+    ],
+    "estimated_effort": 1.5,
+    "impact_areas": [
+      "reliability",
+      "developer_productivity"
+    ],
+    "raw_wsjf": {
+      "user_value": 8,
+      "time_criticality": 7,
+      "risk_reduction": 8,
+      "opportunity": 6
+    },
+    "raw_ice": {
+      "impact": 8,
+      "confidence": 9,
+      "ease": 8
+    },
+    "technical_debt": {
+      "debt_cost": 50,
+      "interest_rate": 0.2,
+      "hotspot_multiplier": 2.5
+    },
+    "wsjf_score": 19.333333333333332,
+    "ice_score": 576,
+    "technical_debt_score": 150.0,
+    "composite_score": 48.96
+  },
+  {
+    "id": "perf-compile-time",
+    "title": "Optimize MLIR compilation pipeline performance",
+    "description": "Profile and optimize critical compilation passes",
+    "category": "performance",
+    "source": "performance_analysis",
+    "files": [
+      "CMakeLists.txt",
+      "**/*.cpp"
+    ],
+    "estimated_effort": 4.0,
+    "impact_areas": [
+      "user_experience",
+      "developer_productivity"
+    ],
+    "raw_wsjf": {
+      "user_value": 9,
+      "time_criticality": 5,
+      "risk_reduction": 4,
+      "opportunity": 8
+    },
+    "raw_ice": {
+      "impact": 8,
+      "confidence": 6,
+      "ease": 4
+    },
+    "technical_debt": {
+      "debt_cost": 40,
+      "interest_rate": 0.05,
+      "hotspot_multiplier": 1.8
+    },
+    "wsjf_score": 6.5,
+    "ice_score": 192,
+    "technical_debt_score": 75.60000000000001,
+    "composite_score": 37.260000000000005
+  },
+  {
+    "id": "perf-memory-opt",
+    "title": "Reduce memory usage in photonic simulation",
+    "description": "Optimize memory allocation patterns in simulation engine",
+    "category": "performance",
+    "source": "profiling",
+    "files": [
+      "photonic/**/*.cpp"
+    ],
+    "estimated_effort": 3.5,
+    "impact_areas": [
+      "scalability",
+      "resource_efficiency"
+    ],
+    "raw_wsjf": {
+      "user_value": 7,
+      "time_criticality": 4,
+      "risk_reduction": 5,
+      "opportunity": 7
+    },
+    "raw_ice": {
+      "impact": 7,
+      "confidence": 5,
+      "ease": 5
+    },
+    "technical_debt": {
+      "debt_cost": 35,
+      "interest_rate": 0.06,
+      "hotspot_multiplier": 1.4
+    },
+    "wsjf_score": 6.571428571428571,
+    "ice_score": 175,
+    "technical_debt_score": 51.94,
+    "composite_score": 30.035571428571426
+  },
+  {
+    "id": "workflow-perf-regression",
+    "title": "Implement continuous performance monitoring",
+    "description": "Add performance regression detection to CI pipeline",
+    "category": "infrastructure",
+    "source": "workflow_analysis",
+    "files": [
+      ".github/workflows/",
+      "benchmarks/"
+    ],
+    "estimated_effort": 2.0,
+    "impact_areas": [
+      "quality_assurance",
+      "performance"
+    ],
+    "raw_wsjf": {
+      "user_value": 7,
+      "time_criticality": 5,
+      "risk_reduction": 7,
+      "opportunity": 5
+    },
+    "raw_ice": {
+      "impact": 7,
+      "confidence": 6,
+      "ease": 5
+    },
+    "technical_debt": {
+      "debt_cost": 20,
+      "interest_rate": 0.1,
+      "hotspot_multiplier": 1.3
+    },
+    "wsjf_score": 12.0,
+    "ice_score": 210,
+    "technical_debt_score": 28.6,
+    "composite_score": 22.22
+  },
+  {
+    "id": "debt-code-todos",
+    "title": "Address TODO and FIXME markers in codebase",
+    "description": "Resolve outstanding technical debt markers",
+    "category": "technical_debt",
+    "source": "code_analysis",
+    "files": [
+      "**/*.py",
+      "**/*.cpp",
+      "**/*.h"
+    ],
+    "estimated_effort": 1.0,
+    "impact_areas": [
+      "maintainability",
+      "code_quality"
+    ],
+    "raw_wsjf": {
+      "user_value": 4,
+      "time_criticality": 2,
+      "risk_reduction": 5,
+      "opportunity": 4
+    },
+    "raw_ice": {
+      "impact": 4,
+      "confidence": 8,
+      "ease": 6
+    },
+    "technical_debt": {
+      "debt_cost": 10,
+      "interest_rate": 0.05,
+      "hotspot_multiplier": 1.0
+    },
+    "wsjf_score": 15.0,
+    "ice_score": 192,
+    "technical_debt_score": 10.5,
+    "composite_score": 22.020000000000003
+  },
+  {
+    "id": "docs-api-coverage",
+    "title": "Improve API documentation coverage",
+    "description": "Add missing docstrings and Doxygen comments",
+    "category": "documentation",
+    "source": "doc_analysis",
+    "files": [
+      "**/*.h",
+      "python/**/*.py"
+    ],
+    "estimated_effort": 2.5,
+    "impact_areas": [
+      "developer_experience",
+      "adoption"
+    ],
+    "raw_wsjf": {
+      "user_value": 6,
+      "time_criticality": 3,
+      "risk_reduction": 3,
+      "opportunity": 6
+    },
+    "raw_ice": {
+      "impact": 6,
+      "confidence": 8,
+      "ease": 7
+    },
+    "technical_debt": {
+      "debt_cost": 25,
+      "interest_rate": 0.04,
+      "hotspot_multiplier": 1.0
+    },
+    "wsjf_score": 7.2,
+    "ice_score": 336,
+    "technical_debt_score": 26.0,
+    "composite_score": 17.2
+  },
+  {
+    "id": "docs-architecture",
+    "title": "Create comprehensive architecture documentation",
+    "description": "Document MLIR dialect design and compiler passes",
+    "category": "documentation",
+    "source": "doc_analysis",
+    "files": [
+      "docs/"
+    ],
+    "estimated_effort": 3.0,
+    "impact_areas": [
+      "onboarding",
+      "maintainability"
+    ],
+    "raw_wsjf": {
+      "user_value": 5,
+      "time_criticality": 2,
+      "risk_reduction": 4,
+      "opportunity": 7
+    },
+    "raw_ice": {
+      "impact": 5,
+      "confidence": 7,
+      "ease": 6
+    },
+    "technical_debt": {
+      "debt_cost": 30,
+      "interest_rate": 0.03,
+      "hotspot_multiplier": 1.1
+    },
+    "wsjf_score": 6.0,
+    "ice_score": 210,
+    "technical_debt_score": 33.99,
+    "composite_score": 16.098
+  }
+]
