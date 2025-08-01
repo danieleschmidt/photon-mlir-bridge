@@ -1,0 +1,79 @@
+# Terragon Autonomous SDLC Configuration
+# Repository: photon-mlir-bridge
+# Maturity Level: MATURING (65%)
+
+repository:
+  name: photon-mlir-bridge
+  maturity_level: maturing
+  primary_language: cpp
+  secondary_languages: [python, cmake, mlir]
+  architecture: compiler_infrastructure
+  
+scoring:
+  weights:
+    maturing:
+      wsjf: 0.6
+      ice: 0.1
+      technicalDebt: 0.2
+      security: 0.1
+  
+  thresholds:
+    minScore: 15
+    maxRisk: 0.8
+    securityBoost: 2.0
+    complianceBoost: 1.8
+    performanceBoost: 1.5
+
+discovery:
+  sources:
+    - gitHistory
+    - staticAnalysis  
+    - issueTrackers
+    - vulnerabilityDatabases
+    - preCommitHooks
+    - performanceMonitoring
+    - userFeedback
+  
+  tools:
+    staticAnalysis:
+      - clang-tidy
+      - mypy
+      - flake8
+      - bandit
+      - ggshield
+    security:
+      - safety
+      - gitguardian
+      - snyk
+    performance:
+      - benchmarks
+      - profiler
+    quality:
+      - codespell
+      - doxygen
+      - prettier
+
+execution:
+  maxConcurrentTasks: 1
+  testRequirements:
+    minCoverage: 80
+    performanceRegression: 5
+    buildSuccess: true
+  rollbackTriggers:
+    - testFailure
+    - buildFailure
+    - securityViolation
+    - performanceRegression
+
+continuous_learning:
+  enabled: true
+  adaptiveWeights: true
+  estimationImprovement: true
+  patternRecognition: true
+  
+integration:
+  preCommitHooks: true
+  githubActions: false  # templates exist, needs activation
+  documentation: true
+  containerization: true
+  pypi: configured
