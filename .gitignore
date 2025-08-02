@@ -205,3 +205,130 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# =============================================================================
+# photon-mlir-bridge Specific
+# =============================================================================
+
+# Build artifacts
+build/
+build-*/
+cmake-build-*/
+*.build/
+
+# LLVM/MLIR generated files
+*.inc
+*.def
+*.gen
+
+# Photonic assembly output
+*.pasm
+*.phdl
+*.photonic
+
+# Test outputs
+test_output/
+test_results/
+*.test
+
+# Profiling and benchmarking
+*.prof
+*.perf
+profile_*
+benchmark_results/
+
+# Hardware simulation data
+simulation_data/
+thermal_data/
+calibration_data/
+
+# MLIR dumps
+*.mlir.dump
+*.ir.dump
+*.asm.dump
+
+# Documentation builds
+docs/_build/
+docs/api/
+docs/html/
+docs/latex/
+
+# IDE and editor files
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/c_cpp_properties.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Development containers
+.devcontainer/docker-compose.override.yml
+.devcontainer/.env
+
+# Cache directories
+.cache/
+.ccache/
+.sccache/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Logs
+logs/
+*.log.*
+photon-*.log
+
+# Configuration files with sensitive data
+.env.local
+.env.production
+config.local.*
+
+# Hardware device files
+/dev/*
+*.device
+
+# Performance data
+*.trace
+*.timeline
+*.flamegraph
+
+# Static analysis outputs
+cppcheck-results.xml
+scan-build-*/
+*.sarif
+
+# Package manager files
+node_modules/
+*.lock
+yarn-error.log
+
+# Container and virtualization
+.vagrant/
+docker-compose.override.yml
+
+# Security scanning results
+*.security
+vulnerability-report.*
+
+# Documentation generation
+doxygen_output/
+sphinx_cache/
+
+# Custom user scripts and configs
+scripts/local/
+configs/local/
+*.local.*
