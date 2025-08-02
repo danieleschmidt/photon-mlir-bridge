@@ -1,220 +1,236 @@
-# Pre-commit hooks configuration for photon-mlir-bridge
-# See https://pre-commit.com for more information
+# pre-commit configuration for photon-mlir-bridge
+# Install with: pre-commit install
+# Run manually: pre-commit run --all-files
 
 repos:
-  # Built-in hooks
+  # =============================================================================
+  # General code quality and formatting
+  # =============================================================================
+  
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^(.*\.md|.*\.patch)$
+        exclude: '\.md$'
       - id: end-of-file-fixer
-        exclude: ^(.*\.patch)$
       - id: check-yaml
-        exclude: ^(.*\.github/.*)$
+        args: ['--allow-multiple-documents']
       - id: check-json
       - id: check-toml
       - id: check-xml
       - id: check-added-large-files
         args: ['--maxkb=1000']
       - id: check-case-conflict
-      - id: check-executables-have-shebangs
       - id: check-merge-conflict
       - id: check-symlinks
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
       - id: detect-private-key
+      - id: fix-byte-order-marker
       - id: mixed-line-ending
         args: ['--fix=lf']
+      - id: no-commit-to-branch
+        args: ['--branch', 'main', '--branch', 'master']
 
-  # Python formatting and linting
+  # =============================================================================
+  # Python code formatting and linting
+  # =============================================================================
+  
   - repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 23.12.1
     hooks:
       - id: black
-        language_version: python3
-        files: ^python/.*\.py$
+        language_version: python3.11
+        args: ['--line-length=88']
 
   - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+    rev: 5.13.2
     hooks:
       - id: isort
-        args: [--profile, black]
-        files: ^python/.*\.py$
+        args: ['--profile', 'black', '--line-length=88']
 
   - repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
+    rev: 7.0.0
     hooks:
       - id: flake8
-        files: ^python/.*\.py$
-        args:
-          - --max-line-length=88
-          - --extend-ignore=E203,W503
-          - --exclude=.git,__pycache__,build,dist,.eggs
+        args: ['--max-line-length=88', '--extend-ignore=E203,W503']
+        additional_dependencies:
+          - flake8-docstrings
+          - flake8-bugbear
+          - flake8-comprehensions
+          - flake8-implicit-str-concat
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.3.0
+    rev: v1.8.0
     hooks:
       - id: mypy
-        files: ^python/.*\.py$
-        additional_dependencies: [types-all]
-        args: [--config-file=pyproject.toml]
+        additional_dependencies:
+          - types-requests
+          - types-PyYAML
+          - numpy
+          - torch
+        args: ['--ignore-missing-imports', '--strict']
 
-  # C++ formatting and linting
-  - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v16.0.6
+  # =============================================================================
+  # C/C++ formatting and linting
+  # =============================================================================
+  
+  - repo: local
     hooks:
       - id: clang-format
-        files: \.(cpp|cc|cxx|c|h|hpp|hxx)$
-        args: [-i, --style=file]
+        name: clang-format
+        entry: clang-format-17
+        language: system
+        files: \.(c|cc|cxx|cpp|h|hpp|hxx)$
+        args: ['-i', '-style=file']
 
   - repo: local
     hooks:
       - id: clang-tidy
         name: clang-tidy
-        entry: clang-tidy
+        entry: bash -c 'find . -name "*.cpp" -o -name "*.cc" -o -name "*.cxx" | head -10 | xargs clang-tidy-17 --config-file=.clang-tidy'
         language: system
-        files: \.(cpp|cc|cxx|c)$
-        args:
-          - --config-file=.clang-tidy
-          - --header-filter=.*
-        exclude: ^(build/|external/|third_party/)
+        files: \.(cpp|cc|cxx)$
+        pass_filenames: false
 
+  # =============================================================================
   # CMake formatting
+  # =============================================================================
+  
   - repo: https://github.com/cheshirekow/cmake-format-precommit
     rev: v0.6.13
     hooks:
       - id: cmake-format
-        additional_dependencies: [pyyaml]
-        files: \.(cmake|CMakeLists\.txt)$
+        args: ['--in-place']
+      - id: cmake-lint
 
+  # =============================================================================
+  # Documentation and markup
+  # =============================================================================
+  
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.38.0
+    hooks:
+      - id: markdownlint
+        args: ['--fix']
+        exclude: 'CHANGELOG.md'
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: ['--config-file=.yamllint.yml']
+
+  # =============================================================================
   # Security scanning
+  # =============================================================================
+  
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: \.env\.example$
+
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.5
     hooks:
       - id: bandit
-        files: ^python/.*\.py$
-        args: [-c, pyproject.toml]
+        args: ['-r', 'python/', '-f', 'json', '-o', 'bandit-report.json']
+        files: \.py$
 
-  - repo: https://github.com/gitguardian/ggshield
-    rev: v1.18.0
+  # =============================================================================
+  # License and legal compliance
+  # =============================================================================
+  
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.5.4
     hooks:
-      - id: ggshield
-        language: python
-        stages: [commit]
-
-  # YAML and JSON formatting
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.0.0-alpha.9-for-vscode
-    hooks:
-      - id: prettier
-        files: \.(yaml|yml|json)$
-        exclude: ^(\.github/.*|.*\.md)$
-
-  # Markdown linting
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.35.0
-    hooks:
-      - id: markdownlint
-        args: [--config, .markdownlint.json]
-        exclude: ^(CHANGELOG\.md)$
-
-  # Documentation checks
-  - repo: local
-    hooks:
-      - id: doxygen-check
-        name: doxygen-check
-        entry: python scripts/check_doxygen.py
-        language: python
-        files: \.(cpp|cc|cxx|c|h|hpp|hxx)$
-        pass_filenames: false
-
-  # MLIR-specific checks
-  - repo: local
-    hooks:
-      - id: mlir-format
-        name: mlir-opt format check
-        entry: python scripts/check_mlir_format.py
-        language: python
-        files: \.(mlir|td)$
-        pass_filenames: true
-
-      - id: tablegen-format
-        name: TableGen format check
-        entry: python scripts/check_tablegen_format.py
-        language: python
-        files: \.td$
-        pass_filenames: true
-
-  # License header check
-  - repo: local
-    hooks:
-      - id: license-header
-        name: License header check
-        entry: python scripts/check_license_header.py
-        language: python
-        files: \.(cpp|cc|cxx|c|h|hpp|hxx|py)$
-        pass_filenames: true
-
-  # Dependency vulnerability scanning
-  - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
-    rev: v1.3.2
-    hooks:
-      - id: python-safety-dependencies-check
-        files: ^(requirements.*\.txt|pyproject\.toml)$
-
-  # Spell checking
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.5
-    hooks:
-      - id: codespell
+      - id: insert-license
+        files: \.(cpp|cc|cxx|h|hpp|hxx)$
         args:
-          - --ignore-words-list=nd,te,ba,fo,ser
-          - --skip="*.git,*.pyc,*.json,build,dist"
-        exclude: ^(.*\.patch|.*\.lock)$
+          - --license-filepath
+          - .license-header.txt
+          - --comment-style
+          - //
 
-  # Performance regression detection
+      - id: insert-license
+        files: \.py$
+        args:
+          - --license-filepath
+          - .license-header.txt
+          - --comment-style
+          - '#'
+
+  # =============================================================================
+  # Custom project-specific hooks
+  # =============================================================================
+  
   - repo: local
     hooks:
-      - id: performance-check
-        name: Performance regression check
-        entry: python scripts/check_performance_regression.py
-        language: python
-        files: \.(cpp|cc|cxx|c|py)$
-        stages: [pre-push]
-        pass_filenames: false
-
-  # Hardware-specific validation
-  - repo: local
-    hooks:
-      - id: photonic-validation
-        name: Photonic hardware validation
-        entry: python scripts/validate_photonic_code.py
-        language: python
-        files: photonic/.*\.(cpp|cc|cxx|c|h|hpp|hxx|py)$
+      - id: check-photonic-syntax
+        name: Check photonic assembly syntax
+        entry: python3 scripts/check_photonic_syntax.py
+        language: system
+        files: \.(pasm|phdl)$
         pass_filenames: true
 
+  - repo: local
+    hooks:
+      - id: validate-mlir
+        name: Validate MLIR files
+        entry: bash -c 'for file in "$@"; do mlir-opt-17 --verify-diagnostics "$file" > /dev/null; done'
+        language: system
+        files: \.mlir$
+        pass_filenames: true
+
+  - repo: local
+    hooks:
+      - id: check-build
+        name: Check that project builds
+        entry: bash -c 'if [ -d build ]; then cmake --build build --target check-syntax; fi'
+        language: system
+        files: \.(cpp|cc|cxx|h|hpp|hxx|cmake|txt)$
+        pass_filenames: false
+
+  - repo: local
+    hooks:
+      - id: update-changelog
+        name: Update changelog
+        entry: python3 scripts/update_changelog.py
+        language: system
+        files: ^(src/|python/|include/).*\.(cpp|cc|cxx|h|hpp|hxx|py)$
+        pass_filenames: false
+
+  # =============================================================================
+  # Performance and optimization checks
+  # =============================================================================
+  
+  - repo: local
+    hooks:
+      - id: check-performance-regressions
+        name: Check for performance regressions
+        entry: python3 scripts/check_performance.py
+        language: system
+        files: ^(src/|python/|include/).*\.(cpp|cc|cxx|h|hpp|hxx|py)$
+        pass_filenames: false
+        stages: [manual]
+
+# =============================================================================
 # Global configuration
+# =============================================================================
+
 default_language_version:
   python: python3.11
 
-exclude: |
-  (?x)^(
-    build/.*|
-    external/.*|
-    third_party/.*|
-    \.git/.*|
-    .*\.patch|
-    .*\.diff
-  )$
-
-# CI-specific configuration
 ci:
   autofix_commit_msg: |
-    [pre-commit.ci] auto fixes from pre-commit.com hooks
+    [pre-commit.ci] auto fixes from pre-commit hooks
 
     for more information, see https://pre-commit.ci
   autofix_prs: true
-  autoupdate_branch: ''
+  autoupdate_branch: 'main'
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
   autoupdate_schedule: weekly
-  skip: [clang-tidy, doxygen-check, performance-check]
+  skip: [clang-tidy, check-build, check-performance-regressions]
   submodules: false

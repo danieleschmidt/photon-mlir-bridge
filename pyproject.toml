@@ -67,6 +67,8 @@ Issues = "https://github.com/yourusername/photon-mlir-bridge/issues"
 photon-compile = "photon_mlir.cli:compile_main"
 photon-debug = "photon_mlir.cli:debug_main"
 photon-profile = "photon_mlir.cli:profile_main"
+photon-simulate = "photon_mlir.cli:simulate_main"
+photon-bench = "photon_mlir.cli:benchmark_main"
 
 [tool.setuptools.packages.find]
 where = ["python"]
@@ -101,7 +103,7 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 
 [tool.pytest.ini_options]
-testpaths = ["test"]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -113,3 +115,37 @@ addopts = [
     "--cov-report=html",
     "--cov-report=xml",
 ]
+
+[tool.coverage.run]
+source = ["python/photon_mlir"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/conftest.py",
+    "*/setup.py",
+    "*/__pycache__/*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:"
+]
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+per-file-ignores = [
+    "__init__.py:F401",
+    "tests/*:S101"
+]
+
+[tool.bandit]
+exclude_dirs = ["tests", "build", "docs"]
+skips = ["B101", "B601"]
