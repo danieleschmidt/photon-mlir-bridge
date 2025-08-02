@@ -1,0 +1,238 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "PhotonMLIR - System Overview",
+    "tags": ["photon-mlir", "overview", "system"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "instance",
+          "type": "query",
+          "query": "label_values(photon_compiler_info, instance)",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true,
+          "current": {
+            "text": "All",
+            "value": "$__all"
+          }
+        },
+        {
+          "name": "device",
+          "type": "query", 
+          "query": "label_values(photon_device_status, device_id)",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true,
+          "current": {
+            "text": "All",
+            "value": "$__all"
+          }
+        }
+      ]
+    },
+    "panels": [
+      {
+        "title": "System Status",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "photon_compiler_up",
+            "legendFormat": "Compiler Status"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {"type": "value", "value": "0", "text": "DOWN"},
+              {"type": "value", "value": "1", "text": "UP"}
+            ]
+          }
+        }
+      },
+      {
+        "title": "Active Devices",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "count(photon_device_status == 1)",
+            "legendFormat": "Active Devices"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "none"
+          }
+        }
+      },
+      {
+        "title": "Compilation Rate",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "rate(photon_compilations_total[5m])",
+            "legendFormat": "Compilations/s"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "continuous-GrYlRd"},
+            "unit": "ops"
+          }
+        }
+      },
+      {
+        "title": "Error Rate",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+        "targets": [
+          {
+            "expr": "rate(photon_compilations_total{status=\"error\"}[5m]) / rate(photon_compilations_total[5m]) * 100",
+            "legendFormat": "Error Rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 5}
+              ]
+            },
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "title": "Compilation Duration",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(photon_compilation_duration_seconds_bucket[5m]))",
+            "legendFormat": "95th percentile"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(photon_compilation_duration_seconds_bucket[5m]))",
+            "legendFormat": "50th percentile"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "s"
+          }
+        }
+      },
+      {
+        "title": "Device Power Consumption",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+        "targets": [
+          {
+            "expr": "photon_optical_power_mw{device_id=~\"$device\"}",
+            "legendFormat": "{{device_id}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "mwatt"
+          }
+        }
+      },
+      {
+        "title": "Memory Usage",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 12},
+        "targets": [
+          {
+            "expr": "photon_memory_usage_bytes{instance=~\"$instance\"} / 1024 / 1024 / 1024",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "gbytes"
+          }
+        }
+      },
+      {
+        "title": "CPU Usage",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 12},
+        "targets": [
+          {
+            "expr": "rate(photon_cpu_seconds_total{instance=~\"$instance\"}[5m]) * 100",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "title": "Cache Hit Rate",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 12},
+        "targets": [
+          {
+            "expr": "photon_cache_hits_total / (photon_cache_hits_total + photon_cache_misses_total) * 100",
+            "legendFormat": "Cache Hit Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "green"},
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "title": "Recent Compilation Logs",
+        "type": "logs",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 20},
+        "targets": [
+          {
+            "expr": "{job=\"photon-mlir\"} |= \"compilation\"",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": true,
+          "showCommonLabels": false,
+          "wrapLogMessage": true,
+          "dedupStrategy": "none"
+        }
+      }
+    ]
+  }
+}

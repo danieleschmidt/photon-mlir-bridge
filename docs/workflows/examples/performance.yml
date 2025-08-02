@@ -1,0 +1,745 @@
+# Performance Monitoring Workflow for photon-mlir-bridge
+# This file should be placed at: .github/workflows/performance.yml
+
+name: Performance Monitoring
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sundays at 2 AM UTC
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'python/**'
+      - 'benchmarks/**'
+      - 'tests/benchmarks/**'
+      - 'CMakeLists.txt'
+      - 'pyproject.toml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'python/**'
+      - 'benchmarks/**'
+      - 'tests/benchmarks/**'
+  workflow_dispatch:
+    inputs:
+      benchmark_suite:
+        description: 'Benchmark suite to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - compilation
+          - runtime
+          - memory
+          - hardware
+      compare_baseline:
+        description: 'Compare against baseline'
+        required: false
+        default: true
+        type: boolean
+      upload_results:
+        description: 'Upload results to performance database'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  PYTHON_VERSION: '3.11'
+  CMAKE_BUILD_TYPE: Release
+  BENCHMARK_TIMEOUT: 3600  # 1 hour timeout for benchmarks
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  # Setup and validation
+  setup:
+    name: Setup Performance Testing
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    
+    outputs:
+      benchmark_suites: ${{ steps.suites.outputs.suites }}
+      baseline_ref: ${{ steps.baseline.outputs.ref }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine benchmark suites
+        id: suites
+        run: |
+          SUITE="${{ github.event.inputs.benchmark_suite || 'all' }}"
+          
+          if [[ "$SUITE" == "all" ]]; then
+            SUITES='["compilation", "runtime", "memory"]'
+          else
+            SUITES='["'$SUITE'"]'
+          fi
+          
+          echo "suites=$SUITES" >> $GITHUB_OUTPUT
+          echo "Will run benchmark suites: $SUITES"
+
+      - name: Determine baseline reference
+        id: baseline
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # Compare against PR base
+            BASELINE_REF="${{ github.event.pull_request.base.sha }}"
+          else
+            # Compare against previous commit on main
+            BASELINE_REF=$(git rev-parse HEAD~1)
+          fi
+          
+          echo "ref=$BASELINE_REF" >> $GITHUB_OUTPUT
+          echo "Baseline reference: $BASELINE_REF"
+
+  # Compilation benchmarks
+  compilation-benchmarks:
+    name: Compilation Benchmarks
+    runs-on: ubuntu-22.04
+    needs: setup
+    if: contains(fromJSON(needs.setup.outputs.benchmark_suites), 'compilation')
+    timeout-minutes: 60
+    
+    strategy:
+      matrix:
+        model_size: [small, medium, large]
+        target: [simulation, lightmatter]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            llvm-17-dev \
+            mlir-17-tools \
+            libmlir-17-dev \
+            clang-17 \
+            cmake \
+            ninja-build \
+            time \
+            valgrind
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[benchmark,test]"
+
+      - name: Build optimized version
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
+            -DPHOTON_ENABLE_BENCHMARKS=ON \
+            -DPHOTON_ENABLE_PROFILING=ON \
+            -DCMAKE_CXX_FLAGS="-march=native -O3"
+          ninja
+
+      - name: Prepare benchmark models
+        run: |
+          # Generate or download test models
+          python scripts/generate_benchmark_models.py \
+            --size ${{ matrix.model_size }} \
+            --output benchmarks/models/
+
+      - name: Run compilation benchmarks
+        run: |
+          cd build
+          
+          # Set performance governor if available
+          echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor 2>/dev/null || true
+          
+          # Run C++ benchmarks
+          ./tests/benchmarks/compilation_benchmark \
+            --benchmark_format=json \
+            --benchmark_out=compilation_results_${{ matrix.model_size }}_${{ matrix.target }}.json \
+            --benchmark_filter=".*${{ matrix.target }}.*${{ matrix.model_size }}.*" \
+            --benchmark_repetitions=3 \
+            --benchmark_display_aggregates_only=true
+
+      - name: Run Python compilation benchmarks
+        run: |
+          python benchmarks/python/compilation_benchmark.py \
+            --model-size ${{ matrix.model_size }} \
+            --target ${{ matrix.target }} \
+            --output compilation_python_${{ matrix.model_size }}_${{ matrix.target }}.json \
+            --repetitions 3
+
+      - name: Collect system information
+        run: |
+          cat > system_info_${{ matrix.model_size }}_${{ matrix.target }}.json << EOF
+          {
+            "hostname": "$(hostname)",
+            "cpu_info": "$(lscpu | grep 'Model name' | sed 's/Model name:[[:space:]]*//')",
+            "cpu_cores": $(nproc),
+            "memory_gb": $(free -g | awk '/^Mem:/{print $2}'),
+            "os_info": "$(lsb_release -d | cut -f2)",
+            "kernel": "$(uname -r)",
+            "cmake_version": "$(cmake --version | head -1)",
+            "llvm_version": "$(llvm-config-17 --version)",
+            "compiler": "$(clang-17 --version | head -1)"
+          }
+          EOF
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: compilation-benchmarks-${{ matrix.model_size }}-${{ matrix.target }}
+          path: |
+            build/compilation_results_*.json
+            compilation_python_*.json
+            system_info_*.json
+
+  # Runtime performance benchmarks
+  runtime-benchmarks:
+    name: Runtime Benchmarks
+    runs-on: ubuntu-22.04
+    needs: setup
+    if: contains(fromJSON(needs.setup.outputs.benchmark_suites), 'runtime')
+    timeout-minutes: 45
+    
+    strategy:
+      matrix:
+        workload: [inference, batch_inference, streaming]
+        precision: [fp32, fp16]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-17-dev mlir-17-tools libmlir-17-dev clang-17
+          python -m pip install --upgrade pip
+          pip install -e ".[benchmark,test]"
+
+      - name: Build runtime components
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
+            -DPHOTON_ENABLE_BENCHMARKS=ON \
+            -DPHOTON_ENABLE_PROFILING=ON
+          make -j$(nproc)
+
+      - name: Prepare runtime benchmarks
+        run: |
+          # Pre-compile models for runtime testing
+          python scripts/prepare_runtime_models.py \
+            --precision ${{ matrix.precision }} \
+            --output build/runtime_models/
+
+      - name: Run runtime benchmarks
+        run: |
+          cd build
+          
+          # Set performance settings
+          echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor 2>/dev/null || true
+          
+          # Run runtime benchmarks
+          ./tests/benchmarks/runtime_benchmark \
+            --benchmark_format=json \
+            --benchmark_out=runtime_results_${{ matrix.workload }}_${{ matrix.precision }}.json \
+            --benchmark_filter=".*${{ matrix.workload }}.*${{ matrix.precision }}.*" \
+            --benchmark_repetitions=5 \
+            --benchmark_display_aggregates_only=true
+
+      - name: Run Python runtime benchmarks
+        run: |
+          python benchmarks/python/runtime_benchmark.py \
+            --workload ${{ matrix.workload }} \
+            --precision ${{ matrix.precision }} \
+            --output runtime_python_${{ matrix.workload }}_${{ matrix.precision }}.json \
+            --repetitions 5
+
+      - name: Profile memory usage
+        run: |
+          # Run with memory profiling
+          valgrind --tool=massif \
+            --massif-out-file=massif_${{ matrix.workload }}_${{ matrix.precision }}.out \
+            build/tests/benchmarks/runtime_benchmark \
+            --benchmark_filter=".*${{ matrix.workload }}.*${{ matrix.precision }}.*" \
+            --benchmark_min_time=1 \
+            2>/dev/null || echo "Profiling completed with warnings"
+
+      - name: Upload runtime results
+        uses: actions/upload-artifact@v3
+        with:
+          name: runtime-benchmarks-${{ matrix.workload }}-${{ matrix.precision }}
+          path: |
+            build/runtime_results_*.json
+            runtime_python_*.json
+            massif_*.out
+
+  # Memory benchmarks
+  memory-benchmarks:
+    name: Memory Benchmarks
+    runs-on: ubuntu-22.04
+    needs: setup
+    if: contains(fromJSON(needs.setup.outputs.benchmark_suites), 'memory')
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            llvm-17-dev mlir-17-tools libmlir-17-dev clang-17 \
+            valgrind \
+            massif-visualizer
+          python -m pip install --upgrade pip
+          pip install -e ".[benchmark,test]" memory-profiler psutil
+
+      - name: Build with memory debugging
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DPHOTON_ENABLE_BENCHMARKS=ON \
+            -DPHOTON_ENABLE_MEMORY_DEBUGGING=ON \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address -g"
+          make -j$(nproc)
+
+      - name: Run memory leak detection
+        run: |
+          cd build
+          
+          # Run with AddressSanitizer
+          ASAN_OPTIONS="detect_leaks=1:abort_on_error=1" \
+          ./tests/benchmarks/memory_benchmark \
+            --benchmark_format=json \
+            --benchmark_out=memory_leak_results.json \
+            --benchmark_repetitions=1
+
+      - name: Run memory usage profiling
+        run: |
+          # Profile memory usage patterns
+          valgrind --tool=massif \
+            --pages-as-heap=yes \
+            --massif-out-file=memory_usage.massif \
+            build/tests/benchmarks/memory_benchmark \
+            --benchmark_min_time=5
+
+      - name: Python memory profiling
+        run: |
+          # Profile Python memory usage
+          python -m memory_profiler benchmarks/python/memory_benchmark.py \
+            --output memory_python_profile.txt
+
+      - name: Generate memory reports
+        run: |
+          # Convert massif output to readable format
+          ms_print memory_usage.massif > memory_usage_report.txt
+          
+          # Generate memory summary
+          cat > memory_summary.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "peak_memory_kb": $(grep -E "mem_heap_B=" memory_usage.massif | sort -t= -k2 -n | tail -1 | cut -d= -f2),
+            "total_allocations": $(grep -c "mem_heap_B=" memory_usage.massif),
+            "python_peak_mb": $(grep "peak memory" memory_python_profile.txt | awk '{print $4}' || echo "0")
+          }
+          EOF
+
+      - name: Upload memory results
+        uses: actions/upload-artifact@v3
+        with:
+          name: memory-benchmarks
+          path: |
+            build/memory_leak_results.json
+            memory_usage.massif
+            memory_usage_report.txt
+            memory_python_profile.txt
+            memory_summary.json
+
+  # Baseline comparison
+  baseline-comparison:
+    name: Baseline Comparison
+    runs-on: ubuntu-22.04
+    needs: [setup, compilation-benchmarks, runtime-benchmarks, memory-benchmarks]
+    if: always() && (github.event.inputs.compare_baseline != 'false')
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout current code
+        uses: actions/checkout@v4
+        with:
+          path: current
+
+      - name: Checkout baseline code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup.outputs.baseline_ref }}
+          path: baseline
+
+      - name: Download current benchmark results
+        uses: actions/download-artifact@v3
+        with:
+          path: current-results/
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install comparison tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            numpy \
+            pandas \
+            matplotlib \
+            seaborn \
+            scipy \
+            jinja2
+
+      # Try to get baseline results from previous runs
+      - name: Download baseline results
+        continue-on-error: true
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: performance.yml
+          commit: ${{ needs.setup.outputs.baseline_ref }}
+          path: baseline-results/
+          if_no_artifact_found: warn
+
+      - name: Generate performance comparison
+        run: |
+          python current/scripts/compare_performance.py \
+            --current-dir current-results/ \
+            --baseline-dir baseline-results/ \
+            --output comparison-report.json \
+            --html-output comparison-report.html \
+            --markdown-output comparison-report.md
+
+      - name: Generate performance charts
+        run: |
+          python current/scripts/generate_perf_charts.py \
+            --input comparison-report.json \
+            --output-dir charts/
+
+      - name: Upload comparison results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-comparison
+          path: |
+            comparison-report.*
+            charts/
+
+      - name: Comment on PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            
+            if (fs.existsSync('comparison-report.md')) {
+              const report = fs.readFileSync('comparison-report.md', 'utf8');
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## 🏃‍♂️ Performance Comparison Report\n\n${report}\n\n*Automated performance analysis*`
+              });
+            }
+
+  # Performance regression detection
+  regression-detection:
+    name: Regression Detection
+    runs-on: ubuntu-22.04
+    needs: [baseline-comparison]
+    if: always() && needs.baseline-comparison.result == 'success'
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download comparison results
+        uses: actions/download-artifact@v3
+        with:
+          name: performance-comparison
+          path: comparison/
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Analyze for regressions
+        run: |
+          python -c "
+          import json
+          import sys
+          
+          # Load comparison results
+          with open('comparison/comparison-report.json', 'r') as f:
+              data = json.load(f)
+          
+          # Define regression thresholds
+          REGRESSION_THRESHOLD = 0.10  # 10% slower is a regression
+          SIGNIFICANT_THRESHOLD = 0.05  # 5% slower is worth noting
+          
+          regressions = []
+          significant_changes = []
+          
+          for benchmark in data.get('benchmarks', []):
+              change = benchmark.get('performance_change', 0)
+              
+              if change > REGRESSION_THRESHOLD:
+                  regressions.append({
+                      'name': benchmark['name'],
+                      'change': change,
+                      'current': benchmark.get('current_time', 0),
+                      'baseline': benchmark.get('baseline_time', 0)
+                  })
+              elif change > SIGNIFICANT_THRESHOLD:
+                  significant_changes.append({
+                      'name': benchmark['name'],
+                      'change': change
+                  })
+          
+          # Save results
+          results = {
+              'has_regressions': len(regressions) > 0,
+              'regression_count': len(regressions),
+              'regressions': regressions,
+              'significant_changes': significant_changes
+          }
+          
+          with open('regression-analysis.json', 'w') as f:
+              json.dump(results, f, indent=2)
+          
+          # Exit with error if regressions found
+          if regressions:
+              print(f'⚠️ {len(regressions)} performance regressions detected!')
+              for reg in regressions:
+                  print(f'  - {reg[\"name\"]}: {reg[\"change\"]:.1%} slower')
+              sys.exit(1)
+          else:
+              print('✅ No performance regressions detected')
+          "
+
+      - name: Create regression issue
+        if: failure() && github.ref == 'refs/heads/main'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const analysis = JSON.parse(fs.readFileSync('regression-analysis.json', 'utf8'));
+            
+            if (analysis.has_regressions) {
+              let body = `## 🚨 Performance Regression Detected\n\n`;
+              body += `**Commit**: ${context.sha}\n`;
+              body += `**Date**: ${new Date().toISOString()}\n\n`;
+              body += `### Regressions Found:\n\n`;
+              
+              for (const reg of analysis.regressions) {
+                body += `- **${reg.name}**: ${(reg.change * 100).toFixed(1)}% slower\n`;
+                body += `  - Current: ${reg.current.toFixed(3)}s\n`;
+                body += `  - Baseline: ${reg.baseline.toFixed(3)}s\n\n`;
+              }
+              
+              body += `\n### Next Steps:\n`;
+              body += `1. Review the changes in commit ${context.sha}\n`;
+              body += `2. Profile the affected code paths\n`;
+              body += `3. Consider reverting if no fix is immediately available\n`;
+              body += `4. Update performance baselines if regression is acceptable\n\n`;
+              body += `*This issue was automatically created by the performance monitoring workflow.*`;
+              
+              github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Performance Regression in ${context.sha.substring(0, 7)}`,
+                body: body,
+                labels: ['performance', 'regression', 'priority-high']
+              });
+            }
+
+      - name: Upload regression analysis
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: regression-analysis
+          path: regression-analysis.json
+
+  # Performance database upload
+  upload-results:
+    name: Upload to Performance Database
+    runs-on: ubuntu-22.04
+    needs: [compilation-benchmarks, runtime-benchmarks, memory-benchmarks]
+    if: always() && (github.event.inputs.upload_results != 'false') && github.ref == 'refs/heads/main'
+    timeout-minutes: 15
+    
+    steps:
+      - name: Download all benchmark results
+        uses: actions/download-artifact@v3
+        with:
+          path: all-results/
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install upload tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests influxdb-client
+
+      - name: Upload to InfluxDB
+        if: env.INFLUXDB_TOKEN != ''
+        env:
+          INFLUXDB_TOKEN: ${{ secrets.INFLUXDB_TOKEN }}
+          INFLUXDB_URL: ${{ secrets.INFLUXDB_URL }}
+          INFLUXDB_ORG: ${{ secrets.INFLUXDB_ORG }}
+        run: |
+          python - << 'EOF'
+          import json
+          import os
+          import glob
+          from datetime import datetime
+          from influxdb_client import InfluxDBClient, Point
+          from influxdb_client.client.write_api import SYNCHRONOUS
+          
+          # Initialize InfluxDB client
+          client = InfluxDBClient(
+              url=os.environ['INFLUXDB_URL'],
+              token=os.environ['INFLUXDB_TOKEN'],
+              org=os.environ['INFLUXDB_ORG']
+          )
+          write_api = client.write_api(write_options=SYNCHRONOUS)
+          
+          # Process all benchmark result files
+          for result_file in glob.glob('all-results/**/*.json', recursive=True):
+              try:
+                  with open(result_file, 'r') as f:
+                      data = json.load(f)
+                  
+                  # Convert to InfluxDB points
+                  for benchmark in data.get('benchmarks', []):
+                      point = Point('performance_benchmark')
+                      point.tag('repository', '${{ github.repository }}')
+                      point.tag('branch', '${{ github.ref_name }}')
+                      point.tag('commit', '${{ github.sha }}')
+                      point.tag('benchmark_name', benchmark.get('name', 'unknown'))
+                      point.field('time_seconds', float(benchmark.get('real_time', 0)) / 1e9)
+                      point.field('cpu_time_seconds', float(benchmark.get('cpu_time', 0)) / 1e9)
+                      point.field('iterations', int(benchmark.get('iterations', 0)))
+                      point.time(datetime.utcnow())
+                      
+                      write_api.write(bucket='performance', record=point)
+                      
+              except Exception as e:
+                  print(f'Error processing {result_file}: {e}')
+          
+          client.close()
+          print('Performance data uploaded successfully')
+          EOF
+
+      - name: Upload to custom performance API
+        if: env.PERFORMANCE_API_URL != ''
+        env:
+          PERFORMANCE_API_URL: ${{ secrets.PERFORMANCE_API_URL }}
+          PERFORMANCE_API_TOKEN: ${{ secrets.PERFORMANCE_API_TOKEN }}
+        run: |
+          # Custom performance database upload
+          python scripts/upload_performance_data.py \
+            --results-dir all-results/ \
+            --api-url $PERFORMANCE_API_URL \
+            --api-token $PERFORMANCE_API_TOKEN \
+            --commit ${{ github.sha }} \
+            --branch ${{ github.ref_name }}
+
+  # Cleanup and notification
+  notify-results:
+    name: Notify Results
+    runs-on: ubuntu-22.04
+    needs: [compilation-benchmarks, runtime-benchmarks, memory-benchmarks, regression-detection]
+    if: always()
+    timeout-minutes: 5
+    
+    steps:
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          # Determine overall status
+          if [[ "${{ needs.regression-detection.result }}" == "failure" ]]; then
+            STATUS="⚠️ Performance regression detected"
+            COLOR="warning"
+          elif [[ "${{ needs.compilation-benchmarks.result }}" == "success" && 
+                  "${{ needs.runtime-benchmarks.result }}" == "success" && 
+                  "${{ needs.memory-benchmarks.result }}" == "success" ]]; then
+            STATUS="✅ Performance benchmarks completed"
+            COLOR="good"
+          else
+            STATUS="❌ Some performance tests failed"
+            COLOR="danger"
+          fi
+          
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{
+              "text": "'"$STATUS"'",
+              "attachments": [{
+                "color": "'"$COLOR"'",
+                "fields": [{
+                  "title": "Repository",
+                  "value": "'"${{ github.repository }}"'",
+                  "short": true
+                }, {
+                  "title": "Branch", 
+                  "value": "'"${{ github.ref_name }}"'",
+                  "short": true
+                }, {
+                  "title": "Commit",
+                  "value": "'"${{ github.sha }}"'",
+                  "short": true
+                }],
+                "actions": [{
+                  "type": "button",
+                  "text": "View Results",
+                  "url": "'"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"'"
+                }]
+              }]
+            }' \
+            $SLACK_WEBHOOK_URL
