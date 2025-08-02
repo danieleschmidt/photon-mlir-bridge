@@ -1,0 +1,194 @@
+# Grafana datasource configuration for Prometheus
+# Configures connection to Prometheus metrics for photon-mlir-bridge monitoring
+
+apiVersion: 1
+
+datasources:
+  # Primary Prometheus datasource
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: "15s"
+      queryTimeout: "60s"
+      httpMethod: "POST"
+      manageAlerts: true
+      alertmanagerUid: "alertmanager"
+      prometheusType: "Prometheus"
+      prometheusVersion: "2.40.0"
+      cacheLevel: "High"
+      disableMetricsLookup: false
+      customQueryParameters: ""
+      incrementalQuerying: true
+      incrementalQueryOverlapWindow: "10m"
+    secureJsonData: {}
+
+  # Long-term storage Prometheus (if using remote storage)
+  - name: Prometheus-LongTerm
+    type: prometheus
+    access: proxy
+    url: https://prometheus-longterm.example.com
+    isDefault: false
+    editable: true
+    jsonData:
+      timeInterval: "60s"
+      queryTimeout: "300s"
+      httpMethod: "POST"
+      manageAlerts: false
+      prometheusType: "Prometheus"
+      cacheLevel: "Medium"
+      customQueryParameters: ""
+    secureJsonData:
+      basicAuthPassword: "${PROMETHEUS_LONGTERM_PASSWORD}"
+    basicAuth: true
+    basicAuthUser: "${PROMETHEUS_LONGTERM_USER}"
+
+  # Alertmanager datasource
+  - name: Alertmanager
+    type: alertmanager
+    uid: "alertmanager"
+    access: proxy
+    url: http://alertmanager:9093
+    isDefault: false
+    editable: true
+    jsonData:
+      implementation: "prometheus"
+      handleGrafanaManagedAlerts: true
+    secureJsonData: {}
+
+  # Loki for log aggregation (optional)
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: false
+    editable: true
+    jsonData:
+      timeout: 60
+      maxLines: 1000
+      derivedFields:
+        - datasourceUid: "prometheus"
+          matcherRegex: "trace_id=(\\w+)"
+          name: "TraceID"
+          url: "/explore?orgId=1&left=%5B%22now-1h%22,%22now%22,%22Jaeger%22,%7B%22query%22:%22$${__value.raw}%22%7D%5D"
+    secureJsonData: {}
+
+  # Jaeger for distributed tracing (optional)
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger-query:16686
+    isDefault: false
+    editable: true
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: "loki"
+        filterByTraceID: true
+        filterBySpanID: true
+        customQuery: true
+        query: '{job="photon-mlir"} |= "${__trace.traceId}"'
+        tags:
+          - key: "service.name"
+            value: "service"
+    secureJsonData: {}
+
+  # InfluxDB for high-frequency device metrics (optional)
+  - name: InfluxDB-DeviceMetrics
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    database: photon_device_metrics
+    isDefault: false
+    editable: true
+    jsonData:
+      timeInterval: "1s"
+      queryTimeout: "30s"
+    user: "${INFLUXDB_USER}"
+    secureJsonData:
+      password: "${INFLUXDB_PASSWORD}"
+
+  # Elasticsearch for log analysis (optional)
+  - name: Elasticsearch-Logs
+    type: elasticsearch
+    access: proxy
+    url: http://elasticsearch:9200
+    database: "photon-mlir-logs-*"
+    isDefault: false
+    editable: true
+    jsonData:
+      timeField: "@timestamp"
+      interval: "Daily"
+      logMessageField: "message"
+      logLevelField: "level"
+      maxConcurrentShardRequests: 5
+      includeFrozen: false
+    secureJsonData: {}
+
+  # CloudWatch for AWS deployment metrics (optional)
+  - name: CloudWatch
+    type: cloudwatch
+    access: proxy
+    isDefault: false
+    editable: true
+    jsonData:
+      authType: "default"
+      defaultRegion: "us-west-2"
+      customMetricsNamespaces: "PhotonMLIR,AWS/ECS,AWS/EKS"
+      assumeRoleArn: "${AWS_ASSUME_ROLE_ARN}"
+    secureJsonData:
+      accessKey: "${AWS_ACCESS_KEY_ID}"
+      secretKey: "${AWS_SECRET_ACCESS_KEY}"
+
+  # TestData for dashboard development
+  - name: TestData
+    type: testdata
+    access: proxy
+    isDefault: false
+    editable: true
+    jsonData: {}
+
+# Plugin configuration
+plugins:
+  - name: "grafana-piechart-panel"
+    version: "latest"
+  - name: "grafana-worldmap-panel" 
+    version: "latest"
+  - name: "grafana-clock-panel"
+    version: "latest"
+  - name: "grafana-polystat-panel"
+    version: "latest"
+
+# Notification channels configuration
+notifiers:
+  - name: "slack-photon-alerts"
+    type: "slack"
+    settings:
+      url: "${SLACK_WEBHOOK_URL}"
+      channel: "#photon-mlir-alerts"
+      username: "Grafana"
+      title: "PhotonMLIR Alert"
+      text: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+
+  - name: "pagerduty-critical"
+    type: "pagerduty"
+    settings:
+      integrationKey: "${PAGERDUTY_INTEGRATION_KEY}"
+      severity: "critical"
+      customDetails:
+        cluster: "photon-mlir-production"
+        service: "{{ .GroupLabels.service }}"
+
+  - name: "email-team"
+    type: "email"
+    settings:
+      addresses: "photon-team@example.com;ops-team@example.com"
+      subject: "[PhotonMLIR] {{ .CommonAnnotations.summary }}"
+      body: |
+        {{ range .Alerts }}
+        Alert: {{ .Annotations.summary }}
+        Description: {{ .Annotations.description }}
+        Labels: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
+        {{ end }}
