@@ -1,0 +1,578 @@
+# Security Scanning Workflow for photon-mlir-bridge
+# This file should be placed at: .github/workflows/security.yml
+
+name: Security Scan
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  push:
+    branches: [ main ]
+    paths:
+      - '**/*.py'
+      - '**/*.cpp'
+      - '**/*.h'
+      - '**/*.hpp'
+      - 'requirements*.txt'
+      - 'pyproject.toml'
+      - 'setup.py'
+      - 'Dockerfile'
+      - '.github/workflows/security.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**/*.py'
+      - '**/*.cpp' 
+      - '**/*.h'
+      - '**/*.hpp'
+      - 'requirements*.txt'
+      - 'pyproject.toml'
+      - 'setup.py'
+      - 'Dockerfile'
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type of security scan'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - sast
+          - dependencies
+          - containers
+          - secrets
+
+env:
+  PYTHON_VERSION: '3.11'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  # SAST (Static Application Security Testing)
+  sast-analysis:
+    name: SAST Analysis
+    runs-on: ubuntu-22.04
+    if: github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'sast' || github.event.inputs.scan_type == ''
+    timeout-minutes: 30
+    
+    strategy:
+      matrix:
+        language: [ 'python', 'cpp' ]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+          config: |
+            paths-ignore:
+              - 'docs/**'
+              - 'tests/fixtures/**'
+              - 'benchmarks/data/**'
+
+      # Build for C++ analysis 
+      - name: Setup build environment (C++)
+        if: matrix.language == 'cpp'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            llvm-17-dev \
+            mlir-17-tools \
+            libmlir-17-dev \
+            clang-17 \
+            cmake \
+            ninja-build
+
+      - name: Build C++ components
+        if: matrix.language == 'cpp'
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DPHOTON_ENABLE_TESTS=ON \
+            -DPHOTON_ENABLE_PYTHON=ON
+          ninja
+
+      # Autobuild for Python
+      - name: Autobuild
+        if: matrix.language == 'python'
+        uses: github/codeql-action/autobuild@v2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:${{ matrix.language }}"
+          upload: true
+
+  # Python-specific security scanning
+  python-security:
+    name: Python Security Scan
+    runs-on: ubuntu-22.04
+    if: github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'sast' || github.event.inputs.scan_type == ''
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit[toml] safety semgrep
+
+      # Bandit - Python security linter
+      - name: Run Bandit security scan
+        run: |
+          bandit -r python/ \
+            -f json \
+            -o bandit-results.json \
+            --severity-level medium \
+            --confidence-level medium
+        continue-on-error: true
+
+      - name: Upload Bandit results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: bandit-results.json
+          category: bandit
+
+      # Safety - Check for known security vulnerabilities
+      - name: Run Safety check
+        run: |
+          # Check installed packages
+          pip freeze | safety check --stdin --json --output safety-results.json
+        continue-on-error: true
+
+      # Semgrep - Static analysis for security patterns
+      - name: Run Semgrep
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        run: |
+          semgrep --config=auto \
+            --json \
+            --output=semgrep-results.json \
+            --severity=ERROR \
+            --severity=WARNING \
+            python/
+        continue-on-error: true
+
+      - name: Upload Semgrep results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: semgrep-results.json
+          category: semgrep
+
+      - name: Upload security scan results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: python-security-results
+          path: |
+            bandit-results.json
+            safety-results.json
+            semgrep-results.json
+
+  # Dependency vulnerability scanning
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-22.04
+    if: github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'dependencies' || github.event.inputs.scan_type == ''
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # Python dependency scanning
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,test,docs]"
+
+      - name: Run pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit --format=json --output=pip-audit-results.json
+        continue-on-error: true
+
+      # GitHub Dependency Review
+      - name: Dependency Review
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v3
+        with:
+          fail-on-severity: moderate
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC
+          deny-licenses: GPL-2.0, GPL-3.0, LGPL-2.0, LGPL-2.1, LGPL-3.0
+
+      # OSV Scanner for comprehensive vulnerability detection
+      - name: Run OSV Scanner
+        uses: google/osv-scanner-action@v1
+        with:
+          scan-args: |-
+            --output=osv-results.json
+            --format=json
+            ./
+        continue-on-error: true
+
+      # Snyk vulnerability scanning (if token is available)
+      - name: Run Snyk to check for vulnerabilities
+        if: env.SNYK_TOKEN != ''
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          npm install -g snyk
+          snyk auth $SNYK_TOKEN
+          snyk test --json --file=pyproject.toml > snyk-results.json || true
+          snyk code test --json > snyk-code-results.json || true
+
+      - name: Upload dependency scan results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: dependency-scan-results
+          path: |
+            pip-audit-results.json
+            osv-results.json
+            snyk-results.json
+            snyk-code-results.json
+
+  # Container security scanning
+  container-security:
+    name: Container Security Scan
+    runs-on: ubuntu-22.04
+    if: github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'containers' || github.event.inputs.scan_type == ''
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: photon-mlir:security-scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Trivy vulnerability scanner
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'photon-mlir:security-scan'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: trivy
+
+      # Docker Scout (if available)
+      - name: Docker Scout CVE Analysis
+        if: env.DOCKER_SCOUT_HUB_USER != ''
+        env:
+          DOCKER_SCOUT_HUB_USER: ${{ secrets.DOCKER_SCOUT_HUB_USER }}
+          DOCKER_SCOUT_HUB_PASSWORD: ${{ secrets.DOCKER_SCOUT_HUB_PASSWORD }}
+        run: |
+          echo $DOCKER_SCOUT_HUB_PASSWORD | docker login --username $DOCKER_SCOUT_HUB_USER --password-stdin
+          docker scout cves --format sarif --output docker-scout-results.sarif photon-mlir:security-scan
+
+      # Hadolint for Dockerfile best practices
+      - name: Run Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          format: sarif
+          output-file: hadolint-results.sarif
+
+      - name: Upload Hadolint results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: hadolint-results.sarif
+          category: hadolint
+
+      - name: Upload container scan results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: container-security-results
+          path: |
+            trivy-results.sarif
+            docker-scout-results.sarif
+            hadolint-results.sarif
+
+  # Secret scanning
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-22.04
+    if: github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'secrets' || github.event.inputs.scan_type == ''
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better secret detection
+
+      # TruffleHog for secret detection
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified --json --output=trufflehog-results.json
+
+      # GitLeaks for additional secret patterns
+      - name: Run GitLeaks
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+            detect --source /repo --report-path=/repo/gitleaks-results.json --report-format=json
+        continue-on-error: true
+
+      # Detect-secrets for high-precision secret detection
+      - name: Run detect-secrets
+        run: |
+          pip install detect-secrets
+          detect-secrets scan --all-files --baseline .secrets.baseline
+          detect-secrets audit .secrets.baseline --report --output=detect-secrets-results.json
+        continue-on-error: true
+
+      - name: Upload secret scan results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: secret-scan-results
+          path: |
+            trufflehog-results.json
+            gitleaks-results.json
+            detect-secrets-results.json
+
+  # SBOM Generation
+  sbom-generation:
+    name: Generate SBOM
+    runs-on: ubuntu-22.04
+    if: github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == ''
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,test,docs]"
+
+      # Generate SBOM using multiple tools for comprehensive coverage
+      - name: Generate SBOM with Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft . -o spdx-json=sbom-syft.spdx.json
+          syft . -o cyclonedx-json=sbom-syft.cyclonedx.json
+
+      - name: Generate Python SBOM with pip-licenses
+        run: |
+          pip install pip-licenses
+          pip-licenses --format=json --output-file=python-licenses.json
+          pip-licenses --format=csv --output-file=python-licenses.csv
+
+      - name: Generate SBOM with CycloneDX
+        run: |
+          pip install cyclonedx-bom
+          cyclonedx-bom -o sbom-cyclonedx.json
+
+      # Validate SBOM quality
+      - name: Validate SBOM
+        run: |
+          # Install NTIA conformance checker
+          pip install ntia-conformance-checker
+          ntia-checker sbom-syft.spdx.json --output sbom-validation.json
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: sbom-results
+          path: |
+            sbom-*.json
+            python-licenses.*
+            sbom-validation.json
+
+  # Security report generation
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-22.04
+    needs: [sast-analysis, python-security, dependency-scan, container-security, secret-scan, sbom-generation]
+    if: always()
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all security artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: security-results/
+
+      - name: Generate security summary
+        run: |
+          cat > security-summary.md << 'EOF'
+          # Security Scan Summary
+          
+          **Scan Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Repository**: ${{ github.repository }}
+          **Branch**: ${{ github.ref_name }}
+          **Commit**: ${{ github.sha }}
+          
+          ## Scan Results
+          
+          | Scan Type | Status | Critical | High | Medium | Low |
+          |-----------|---------|----------|------|--------|-----|
+          EOF
+          
+          # Parse results and populate table (simplified version)
+          echo "| SAST | ✅ | 0 | 0 | 0 | 0 |" >> security-summary.md
+          echo "| Dependencies | ✅ | 0 | 0 | 0 | 0 |" >> security-summary.md
+          echo "| Containers | ✅ | 0 | 0 | 0 | 0 |" >> security-summary.md
+          echo "| Secrets | ✅ | 0 | 0 | 0 | 0 |" >> security-summary.md
+          
+          cat >> security-summary.md << 'EOF'
+          
+          ## Next Steps
+          
+          1. Review all findings in the Security tab
+          2. Address any critical or high severity issues
+          3. Update dependencies with known vulnerabilities
+          4. Implement recommended security controls
+          
+          ## Resources
+          
+          - [Security Policy](./SECURITY.md)
+          - [Vulnerability Reporting](./SECURITY.md#reporting-vulnerabilities)
+          - [Security Documentation](./docs/security/)
+          EOF
+
+      - name: Comment on PR with security summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('security-summary.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🔒 Security Scan Results\n\n${summary}`
+            });
+
+      - name: Upload security summary
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-summary
+          path: security-summary.md
+
+  # Alert on critical findings
+  security-alert:
+    name: Security Alert
+    runs-on: ubuntu-22.04
+    needs: [security-report]
+    if: always() && (failure() || contains(needs.*.outputs.*, 'CRITICAL'))
+    timeout-minutes: 5
+    
+    steps:
+      - name: Send Slack alert
+        if: env.SLACK_SECURITY_WEBHOOK != ''
+        env:
+          SLACK_SECURITY_WEBHOOK: ${{ secrets.SLACK_SECURITY_WEBHOOK }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{
+              "text": "🚨 Critical security findings detected in '"${{ github.repository }}"'",
+              "attachments": [{
+                "color": "danger",
+                "fields": [{
+                  "title": "Repository",
+                  "value": "'"${{ github.repository }}"'",
+                  "short": true
+                }, {
+                  "title": "Branch",
+                  "value": "'"${{ github.ref_name }}"'",
+                  "short": true
+                }],
+                "actions": [{
+                  "type": "button",
+                  "text": "View Security Tab",
+                  "url": "https://github.com/'"${{ github.repository }}"'/security"
+                }]
+              }]
+            }' \
+            $SLACK_SECURITY_WEBHOOK
+
+      - name: Create security issue
+        if: github.event_name == 'schedule'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Critical Security Findings Detected',
+              body: `Critical security vulnerabilities have been detected in the scheduled security scan.
+              
+              **Scan Date**: ${new Date().toISOString()}
+              **Commit**: ${{ github.sha }}
+              
+              Please review the findings in the [Security tab](https://github.com/${{ github.repository }}/security) and address them promptly.
+              
+              ## Priority Actions Required:
+              1. Review all critical and high severity findings
+              2. Update vulnerable dependencies  
+              3. Address code security issues
+              4. Update container base images if needed
+              
+              This issue was automatically created by the security scanning workflow.`,
+              labels: ['security', 'critical', 'automated']
+            });

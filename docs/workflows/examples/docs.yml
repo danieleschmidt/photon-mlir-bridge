@@ -1,0 +1,543 @@
+# Documentation Build and Deploy Workflow for photon-mlir-bridge
+# This file should be placed at: .github/workflows/docs.yml
+
+name: Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - '*.md'
+      - 'python/**/*.py'  # For API docs
+      - 'include/**/*.h'  # For C++ API docs
+      - 'mkdocs.yml'
+      - 'docs/conf.py'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - '*.md'
+      - 'python/**/*.py'
+      - 'include/**/*.h'
+      - 'mkdocs.yml'
+      - 'docs/conf.py'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Force deploy to GitHub Pages'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  PYTHON_VERSION: '3.11'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # Build documentation
+  build-docs:
+    name: Build Documentation
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better changelog generation
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      # Install system dependencies for C++ documentation
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            doxygen \
+            graphviz \
+            plantuml \
+            pandoc \
+            llvm-17-dev \
+            mlir-17-tools \
+            libmlir-17-dev \
+            clang-17
+
+      # Install documentation dependencies
+      - name: Install documentation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[docs]"
+          
+          # Additional documentation tools
+          pip install \
+            sphinx-rtd-theme \
+            sphinx-autoapi \
+            sphinx-copybutton \
+            sphinx-tabs \
+            sphinx-design \
+            myst-parser \
+            breathe \
+            exhale \
+            sphinx-external-toc \
+            sphinx-togglebutton \
+            sphinx-hoverxref \
+            nbsphinx \
+            jupyter \
+            matplotlib \
+            seaborn
+
+      # Build C++ components for API documentation
+      - name: Build C++ components
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPHOTON_ENABLE_PYTHON=ON \
+            -DPHOTON_ENABLE_DOCS=ON \
+            -DPHOTON_BUILD_EXAMPLES=ON
+          make -j$(nproc) || true  # Continue even if some targets fail
+
+      # Generate C++ API documentation with Doxygen
+      - name: Generate C++ API docs
+        run: |
+          cd docs
+          doxygen Doxyfile || echo "Doxygen generation had warnings"
+
+      # Generate Python API documentation
+      - name: Generate Python API docs
+        run: |
+          # Auto-generate API documentation
+          sphinx-apidoc -o docs/api python/photon_mlir --force --module-first
+          
+          # Generate example notebooks if they exist
+          if [ -d "examples" ]; then
+            mkdir -p docs/examples
+            find examples -name "*.ipynb" -exec cp {} docs/examples/ \;
+          fi
+
+      # Build Sphinx documentation
+      - name: Build Sphinx documentation
+        run: |
+          cd docs
+          
+          # Set environment variables for build
+          export PHOTON_DOCS_BUILD=1
+          export SPHINX_BUILD_DIR=_build
+          
+          # Build HTML documentation
+          make html SPHINXOPTS="-W --keep-going -n -T"
+          
+          # Build PDF documentation (optional)
+          # make latexpdf SPHINXOPTS="-W --keep-going -n -T" || echo "PDF build failed"
+
+      # Generate additional documentation formats
+      - name: Generate additional formats
+        run: |
+          cd docs
+          
+          # Generate man pages
+          make man SPHINXOPTS="-W --keep-going -n -T" || echo "Man pages build failed"
+          
+          # Generate EPUB (optional)
+          make epub SPHINXOPTS="-W --keep-going -n -T" || echo "EPUB build failed"
+
+      # Generate documentation metrics
+      - name: Generate documentation metrics
+        run: |
+          # Count documentation coverage
+          python -c "
+          import os
+          import glob
+          
+          def count_files(pattern):
+              return len(glob.glob(pattern, recursive=True))
+          
+          py_files = count_files('python/**/*.py')
+          doc_files = count_files('docs/**/*.rst') + count_files('docs/**/*.md')
+          cpp_files = count_files('include/**/*.h') + count_files('src/**/*.cpp')
+          
+          print(f'Documentation Metrics:')
+          print(f'  Python files: {py_files}')
+          print(f'  C++ files: {cpp_files}')
+          print(f'  Documentation files: {doc_files}')
+          print(f'  Documentation ratio: {doc_files/(py_files+cpp_files)*100:.1f}%')
+          
+          # Save metrics
+          with open('docs/_build/html/metrics.txt', 'w') as f:
+              f.write(f'python_files={py_files}\\n')
+              f.write(f'cpp_files={cpp_files}\\n')
+              f.write(f'doc_files={doc_files}\\n')
+              f.write(f'doc_ratio={doc_files/(py_files+cpp_files)*100:.1f}\\n')
+          "
+
+      # Validate documentation
+      - name: Validate documentation
+        run: |
+          # Check for broken links
+          python -m http.server 8000 --directory docs/_build/html &
+          SERVER_PID=$!
+          sleep 5
+          
+          # Install link checker
+          pip install linkchecker
+          
+          # Check internal links
+          linkchecker http://localhost:8000 \
+            --ignore-url=".*github.com.*" \
+            --ignore-url=".*localhost.*" \
+            --no-warnings \
+            --output=text || echo "Some links may be broken"
+          
+          kill $SERVER_PID
+
+      # Create documentation archive
+      - name: Create documentation archive
+        run: |
+          cd docs/_build
+          tar -czf ../../documentation.tar.gz html/
+          
+          # Create version-specific archive
+          VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])" 2>/dev/null || echo "dev")
+          tar -czf ../../documentation-v$VERSION.tar.gz html/
+
+      # Upload documentation artifacts
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: documentation
+          path: |
+            docs/_build/html/
+            documentation*.tar.gz
+          retention-days: 30
+
+      # Setup Pages (for deployment)
+      - name: Setup Pages
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event.inputs.deploy == 'true')
+        uses: actions/configure-pages@v3
+
+      - name: Upload to GitHub Pages
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event.inputs.deploy == 'true')
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: docs/_build/html
+
+  # Documentation quality checks
+  doc-quality:
+    name: Documentation Quality
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install quality tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            doc8 \
+            pydocstyle \
+            interrogate \
+            blacken-docs \
+            sphinx-lint
+
+      # Check reStructuredText quality
+      - name: Check RST quality with doc8
+        run: |
+          doc8 docs/ \
+            --max-line-length=100 \
+            --ignore-path=docs/_build \
+            --ignore-path=docs/api \
+            --quiet
+
+      # Check Python docstring quality
+      - name: Check Python docstrings
+        run: |
+          # Check docstring style
+          pydocstyle python/ --convention=google --add-ignore=D100,D104
+          
+          # Check docstring coverage
+          interrogate python/ \
+            --ignore-init-method \
+            --ignore-magic \
+            --ignore-module \
+            --fail-under=80 \
+            --quiet \
+            --generate-badge docs/_build/html/
+
+      # Check documentation formatting
+      - name: Check documentation formatting
+        run: |
+          # Check Python code blocks in docs
+          blacken-docs docs/**/*.rst docs/**/*.md --check
+          
+          # Lint Sphinx documentation
+          sphinx-lint docs/ --enable all
+
+      # Check for common documentation issues
+      - name: Check for documentation issues
+        run: |
+          # Check for TODO markers
+          echo "Checking for TODO markers..."
+          if grep -r "TODO\|FIXME\|XXX" docs/ --exclude-dir=_build; then
+            echo "Warning: Found TODO markers in documentation"
+          fi
+          
+          # Check for placeholder text
+          echo "Checking for placeholder text..."
+          if grep -r "Lorem ipsum\|placeholder\|REPLACE_ME" docs/ --exclude-dir=_build; then
+            echo "Error: Found placeholder text in documentation"
+            exit 1
+          fi
+          
+          # Check for consistent terminology
+          echo "Checking for terminology consistency..."
+          python - << 'EOF'
+          import os
+          import re
+          import glob
+          
+          # Define preferred terminology
+          terminology = {
+              r'\bMLIR\b': 'MLIR',  # Ensure consistent capitalization
+              r'\bphotonic\b': 'photonic',  # Consistent case
+              r'\bPhotonic\b': 'Photonic',  # When at start of sentence
+              r'\bAPI\b': 'API',
+          }
+          
+          issues = []
+          for file_path in glob.glob('docs/**/*.rst', recursive=True) + glob.glob('docs/**/*.md', recursive=True):
+              if '_build' in file_path:
+                  continue
+              with open(file_path, 'r', encoding='utf-8') as f:
+                  content = f.read()
+                  for pattern, replacement in terminology.items():
+                      matches = re.findall(pattern, content)
+                      if matches and any(m != replacement for m in matches):
+                          issues.append(f"{file_path}: Inconsistent terminology for {pattern}")
+          
+          if issues:
+              print("Terminology issues found:")
+              for issue in issues:
+                  print(f"  {issue}")
+          else:
+              print("No terminology issues found")
+          EOF
+
+  # Accessibility checks
+  accessibility-check:
+    name: Accessibility Check
+    runs-on: ubuntu-22.04
+    needs: build-docs
+    timeout-minutes: 15
+    
+    steps:
+      - name: Download documentation
+        uses: actions/download-artifact@v3
+        with:
+          name: documentation
+          path: docs-artifact/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install accessibility tools
+        run: |
+          npm install -g @axe-core/cli lighthouse-cli
+
+      - name: Serve documentation
+        run: |
+          cd docs-artifact
+          python -m http.server 8000 &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          sleep 5
+
+      - name: Run accessibility audit with axe-core
+        run: |
+          axe http://localhost:8000 \
+            --include="main" \
+            --exclude="footer" \
+            --reporter=json \
+            --output=axe-results.json || echo "Accessibility issues found"
+
+      - name: Run Lighthouse accessibility audit
+        run: |
+          lighthouse http://localhost:8000 \
+            --only-categories=accessibility \
+            --output=json \
+            --output-path=lighthouse-results.json \
+            --chrome-flags="--headless --no-sandbox"
+
+      - name: Stop server
+        if: always()
+        run: |
+          kill $SERVER_PID || true
+
+      - name: Upload accessibility results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: accessibility-results
+          path: |
+            axe-results.json
+            lighthouse-results.json
+
+  # Deploy to GitHub Pages
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-22.04
+    needs: [build-docs, doc-quality]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event.inputs.deploy == 'true')
+    timeout-minutes: 10
+    
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+
+  # Generate documentation diff for PRs
+  doc-diff:
+    name: Documentation Diff
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          path: pr-branch
+
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-branch
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e pr-branch/.[docs]
+          sudo apt-get install -y doxygen graphviz
+
+      # Build documentation for both branches
+      - name: Build main branch docs
+        run: |
+          cd main-branch/docs
+          make html SPHINXOPTS="-q" || echo "Main branch build failed"
+
+      - name: Build PR branch docs
+        run: |
+          cd pr-branch/docs
+          make html SPHINXOPTS="-q" || echo "PR branch build failed"
+
+      # Generate diff
+      - name: Generate documentation diff
+        run: |
+          # Compare file structure
+          echo "# Documentation Changes" > doc-diff.md
+          echo "" >> doc-diff.md
+          
+          # Compare files that were added/removed
+          echo "## Files Changed" >> doc-diff.md
+          diff -r main-branch/docs pr-branch/docs --brief | head -20 >> doc-diff.md || true
+          
+          # Compare specific files if they exist
+          if [ -f main-branch/docs/_build/html/index.html ] && [ -f pr-branch/docs/_build/html/index.html ]; then
+            echo "" >> doc-diff.md
+            echo "## Content Changes" >> doc-diff.md
+            echo "- Documentation successfully built for both branches" >> doc-diff.md
+            
+            # Count pages
+            MAIN_PAGES=$(find main-branch/docs/_build/html -name "*.html" | wc -l)
+            PR_PAGES=$(find pr-branch/docs/_build/html -name "*.html" | wc -l)
+            echo "- Main branch: $MAIN_PAGES pages" >> doc-diff.md
+            echo "- PR branch: $PR_PAGES pages" >> doc-diff.md
+            echo "- Difference: $((PR_PAGES - MAIN_PAGES)) pages" >> doc-diff.md
+          fi
+
+      - name: Comment on PR with diff
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('doc-diff.md')) {
+              const diff = fs.readFileSync('doc-diff.md', 'utf8');
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## 📚 Documentation Changes\n\n${diff}\n\n*This comment was automatically generated by the documentation workflow.*`
+              });
+            }
+
+  # Documentation deployment notification
+  notify-deployment:
+    name: Notify Deployment
+    runs-on: ubuntu-22.04
+    needs: deploy-pages
+    if: always() && needs.deploy-pages.result == 'success'
+    timeout-minutes: 5
+    
+    steps:
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          DOCS_URL="${{ needs.deploy-pages.outputs.page_url }}"
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{
+              "text": "📚 Documentation updated successfully!",
+              "attachments": [{
+                "color": "good",
+                "fields": [{
+                  "title": "Repository", 
+                  "value": "'"${{ github.repository }}"'",
+                  "short": true
+                }, {
+                  "title": "Branch",
+                  "value": "'"${{ github.ref_name }}"'",
+                  "short": true
+                }],
+                "actions": [{
+                  "type": "button",
+                  "text": "View Documentation",
+                  "url": "'"$DOCS_URL"'"
+                }]
+              }]
+            }' \
+            $SLACK_WEBHOOK_URL
