@@ -1,88 +1,51 @@
-"""Unit tests for the Python compiler interface."""
+"""
+Unit tests for photon_mlir.compiler module.
+"""
 
 import pytest
-import torch
-import numpy as np
-from pathlib import Path
+import tempfile
+import os
 from unittest.mock import Mock, patch, MagicMock
+import numpy as np
 
-# Mock the photon_mlir module for testing
-class MockCompiledModel:
-    def __init__(self, target="simulation", optimization_level=1):
-        self.target = target
-        self.optimization_level = optimization_level
-        self.phase_shifts = 1000
-        self.thermal_compensation = True
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+
+from photon_mlir.compiler import (
+    PhotonicCompiler, CompiledPhotonicModel, compile, 
+    compile_onnx, compile_pytorch
+)
+from photon_mlir.core import TargetConfig, Device, Precision, PhotonicTensor
+
+
+class TestPhotonicCompiler:
+    """Test PhotonicCompiler class."""
+    
+    def test_compiler_initialization(self):
+        """Test compiler initialization."""
+        config = TargetConfig()
+        compiler = PhotonicCompiler(config)
         
-    def simulate(self, input_tensor):
-        # Mock simulation - just add some noise
-        return input_tensor + torch.randn_like(input_tensor) * 0.01
+        assert compiler.target_config == config
+        assert compiler._compiled_model is None
+        assert isinstance(compiler._optimization_stats, dict)
     
-    def export(self, filename):
-        Path(filename).write_text(f"Mock assembly for {self.target}")
-    
-    def get_optimization_report(self):
-        return {
-            "original_flops": 1000000,
-            "photonic_macs": 500000,
-            "total_phase_shifts": self.phase_shifts,
-            "speedup": 3.2,
-            "energy_reduction": 85.5
-        }
-
-def mock_compile(model, target="simulation", optimize_for="latency", **kwargs):
-    """Mock compile function."""
-    if not isinstance(model, torch.nn.Module):
-        raise ValueError("Model must be a torch.nn.Module")
-    
-    if target not in ["simulation", "lightmatter_envise", "mit_photonics"]:
-        raise ValueError(f"Unsupported target: {target}")
-    
-    optimization_level = kwargs.get("optimization_level", 1)
-    return MockCompiledModel(target, optimization_level)
-
-# Mock module
-photon_mlir = Mock()
-photon_mlir.compile = mock_compile
-photon_mlir.PhotonicCompiler = Mock()
-
-
-class TestPhotonCompiler:
-    """Test cases for the photonic compiler."""
-    
-    def test_compile_linear_model(self, simple_linear_model):
-        """Test compilation of a simple linear model."""
-        compiled = photon_mlir.compile(
-            simple_linear_model,
-            target="simulation",
-            optimize_for="latency"
-        )
+    def test_compiler_default_config(self):
+        """Test compiler with default configuration."""
+        compiler = PhotonicCompiler()
         
-        assert compiled is not None
-        assert compiled.target == "simulation"
-        assert isinstance(compiled, MockCompiledModel)
+        assert isinstance(compiler.target_config, TargetConfig)
+        assert compiler.target_config.device == Device.LIGHTMATTER_ENVISE
     
-    def test_compile_conv_model(self, conv_model):
-        """Test compilation of a convolutional model."""
-        compiled = photon_mlir.compile(
-            conv_model,
-            target="lightmatter_envise",
-            optimize_for="power"
-        )
+    def test_compile_onnx_file_not_found(self):
+        """Test ONNX compilation with non-existent file."""
+        compiler = PhotonicCompiler()
         
-        assert compiled is not None
-        assert compiled.target == "lightmatter_envise"
-    
-    def test_compile_transformer_block(self, transformer_block):
-        """Test compilation of a transformer block."""
-        compiled = photon_mlir.compile(
-            transformer_block,
-            target="simulation",
-            optimization_level=2
-        )
-        
-        assert compiled is not None
-        assert compiled.optimization_level == 2
+        with pytest.raises(FileNotFoundError):
+            compiler.compile_onnx("nonexistent.onnx")
     
     def test_invalid_model_type(self):
         """Test that invalid model types raise appropriate errors."""
