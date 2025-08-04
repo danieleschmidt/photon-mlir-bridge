@@ -31,6 +31,8 @@ class TargetConfig:
     wavelength_nm: int = 1550
     max_phase_drift: float = 0.1  # radians
     calibration_interval_ms: int = 100
+    enable_thermal_compensation: bool = True
+    mesh_topology: str = "butterfly"
     
     def to_dict(self) -> dict:
         """Convert to dictionary for C++ interop."""
@@ -40,7 +42,9 @@ class TargetConfig:
             "array_size": self.array_size,
             "wavelength_nm": self.wavelength_nm,
             "max_phase_drift": self.max_phase_drift,
-            "calibration_interval_ms": self.calibration_interval_ms
+            "calibration_interval_ms": self.calibration_interval_ms,
+            "enable_thermal_compensation": self.enable_thermal_compensation,
+            "mesh_topology": self.mesh_topology
         }
 
 

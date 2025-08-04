@@ -42,6 +42,8 @@ struct PhotonicTargetConfig {
   int wavelength_nm = 1550;
   double max_phase_drift = 0.1; // radians
   int calibration_interval_ms = 100;
+  bool enable_thermal_compensation = true;
+  std::string mesh_topology = "butterfly";
 };
 
 } // namespace photonic

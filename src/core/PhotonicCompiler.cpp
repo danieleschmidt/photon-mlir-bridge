@@ -6,8 +6,10 @@
 
 #include "photon/core/PhotonicCompiler.h"
 #include "photon/dialects/PhotonicDialect.h"
+#include "photon/transforms/PhotonicPasses.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
@@ -27,6 +29,10 @@ PhotonicCompiler::PhotonicCompiler() {
   context_->getOrLoadDialect<PhotonicDialect>();
   context_->getOrLoadDialect<func::FuncDialect>();
   context_->getOrLoadDialect<arith::ArithDialect>();
+  context_->getOrLoadDialect<linalg::LinalgDialect>();
+  
+  // Register photonic passes
+  registerPhotonicPasses();
   
   // Create empty module
   OpBuilder builder(context_.get());
@@ -67,15 +73,26 @@ void PhotonicCompiler::setTargetConfig(const PhotonicTargetConfig& config) {
 }
 
 void PhotonicCompiler::buildPipeline(PassManager& pm) {
-  // Basic optimization pipeline
+  // Standard MLIR optimization passes
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
   
-  // TODO: Add photonic-specific passes:
-  // - Matrix decomposition for photonic mesh mapping
-  // - Phase optimization to minimize phase shifts
-  // - Thermal modeling and compensation insertion
-  // - Power balancing across optical channels
+  // Photonic-specific transformation passes
+  pm.addPass(createPhotonicLoweringPass());
+  pm.addPass(createMatrixDecompositionPass());
+  pm.addPass(createPhaseOptimizationPass());
+  
+  // Thermal compensation (if enabled)
+  if (config_.enable_thermal_compensation) {
+    pm.addPass(createThermalCompensationPass());
+  }
+  
+  // Power balancing and mesh optimization
+  pm.addPass(createPowerBalancingPass());
+  pm.addPass(createMeshOptimizationPass());
+  
+  // Final canonicalization
+  pm.addPass(createCanonicalizerPass());
 }
 
 LogicalResult PhotonicCompiler::compile() {

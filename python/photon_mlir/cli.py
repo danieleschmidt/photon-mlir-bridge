@@ -1,293 +1,256 @@
 """
-Command-line interface for photonic compilation tools.
+Comprehensive command-line interface for photonic compiler toolchain.
 """
 
 import argparse
 import sys
 import os
+import json
 from pathlib import Path
+from typing import Optional, Dict, Any
+import numpy as np
 
-from .compiler import PhotonicCompiler, compile_onnx, compile_pytorch
+from .compiler import PhotonicCompiler, compile_onnx, compile_pytorch, compile
 from .core import TargetConfig, Device, Precision
 from .simulator import PhotonicSimulator
+from .validation import ValidationError
+from .logging_config import setup_logging, finalize_logging
 
 
 def compile_main():
     """Main entry point for photon-compile command."""
-    parser = argparse.ArgumentParser(description="Compile neural networks for photonic hardware")
+    parser = argparse.ArgumentParser(
+        description="Compile neural network models for photonic hardware",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  photon-compile model.onnx -o output.phdl --device lightmatter
+  photon-compile model.onnx -o output.phdl --precision fp16 --array-size 32 32
+  photon-compile model.onnx -o output.phdl --optimize-for latency --verbose
+        """
+    )
     
     parser.add_argument("input", help="Input model file (ONNX or PyTorch)")
-    parser.add_argument("-o", "--output", default="model.pasm", 
-                       help="Output photonic assembly file")
-    parser.add_argument("--target", default="lightmatter_envise",
-                       choices=["lightmatter_envise", "mit_photonic", "research_chip"],
-                       help="Target photonic device")
-    parser.add_argument("--precision", default="int8",
-                       choices=["int8", "int16", "fp16", "fp32"],
-                       help="Computation precision") 
-    parser.add_argument("--array-size", default="64,64",
-                       help="Photonic array dimensions (width,height)")
+    parser.add_argument("-o", "--output", required=True, help="Output file path")
+    
+    # Hardware configuration
+    parser.add_argument("--device", choices=["lightmatter", "mit", "research"], 
+                       default="lightmatter", help="Target photonic device")
+    parser.add_argument("--precision", choices=["int8", "int16", "fp16", "fp32"],
+                       default="int8", help="Precision mode")
+    parser.add_argument("--array-size", nargs=2, type=int, default=[64, 64],
+                       metavar=("ROWS", "COLS"), help="Photonic array size")
     parser.add_argument("--wavelength", type=int, default=1550,
                        help="Operating wavelength in nm")
-    parser.add_argument("--show-report", action="store_true",
-                       help="Display optimization report")
-    parser.add_argument("-v", "--verbose", action="store_true",
+    
+    # Optimization options
+    parser.add_argument("--optimize-for", choices=["latency", "power", "accuracy"],
+                       default="latency", help="Optimization target")
+    parser.add_argument("--thermal-compensation", action="store_true", default=True,
+                       help="Enable thermal compensation (default)")
+    parser.add_argument("--no-thermal-compensation", action="store_false", 
+                       dest="thermal_compensation", help="Disable thermal compensation")
+    
+    # Output options
+    parser.add_argument("--report", help="Save optimization report to file")
+    parser.add_argument("--verbose", "-v", action="store_true",
                        help="Enable verbose output")
     
     args = parser.parse_args()
     
-    if args.verbose:
-        print(f"Photonic MLIR Compiler v0.1.0")
-        print(f"Input: {args.input}")
-        print(f"Output: {args.output}")
-        print(f"Target: {args.target}")
-        print(f"Precision: {args.precision}")
-        print(f"Array size: {args.array_size}")
-        print(f"Wavelength: {args.wavelength} nm")
-        print()
-    
-    # Parse array size
-    try:
-        width, height = map(int, args.array_size.split(','))
-        array_size = (width, height)
-    except ValueError:
-        print(f"Error: Invalid array size format '{args.array_size}'. Use 'width,height'")
-        return 1
-    
-    # Create target configuration
+    # Map device names
     device_map = {
-        "lightmatter_envise": Device.LIGHTMATTER_ENVISE,
-        "mit_photonic": Device.MIT_PHOTONIC_PROCESSOR,
-        "research_chip": Device.CUSTOM_RESEARCH_CHIP
+        "lightmatter": Device.LIGHTMATTER_ENVISE,
+        "mit": Device.MIT_PHOTONIC_PROCESSOR,
+        "research": Device.CUSTOM_RESEARCH_CHIP
     }
     
     precision_map = {
         "int8": Precision.INT8,
-        "int16": Precision.INT16,  
+        "int16": Precision.INT16, 
         "fp16": Precision.FP16,
         "fp32": Precision.FP32
     }
     
+    # Create target configuration
     config = TargetConfig(
-        device=device_map[args.target],
+        device=device_map[args.device],
         precision=precision_map[args.precision],
-        array_size=array_size,
+        array_size=tuple(args.array_size),
         wavelength_nm=args.wavelength
     )
     
-    # Check input file exists
-    if not os.path.exists(args.input):
-        print(f"Error: Input file not found: {args.input}")
-        return 1
+    # Setup logging
+    log_level = "DEBUG" if args.verbose else "INFO"
+    logger = setup_logging(level=log_level, performance_logging=True)
     
     try:
+        logger.info(f"🚀 Photonic compilation started")
+        logger.info(f"   Input: {args.input}")
+        logger.info(f"   Device: {args.device} ({args.array_size[0]}×{args.array_size[1]})")
+        logger.info(f"   Precision: {args.precision}")
+        
+        # Validate input file exists
+        if not os.path.exists(args.input):
+            logger.error(f"Input file not found: {args.input}")
+            sys.exit(1)
+        
+        # Create compiler with validation
+        compiler = PhotonicCompiler(config, strict_validation=False, logger=logger)
+        
         # Compile model
-        if args.verbose:
-            print("Loading and compiling model...")
+        if args.input.endswith('.onnx'):
+            compiled_model = compiler.compile_onnx(args.input)
+        elif args.input.endswith('.pt') or args.input.endswith('.pth'):
+            logger.error("PyTorch model compilation requires Python API")
+            sys.exit(1)
+        else:
+            logger.error(f"Unsupported input format: {args.input}")
+            sys.exit(1)
             
-        compiler = PhotonicCompiler(config)
-        compiled_model = compiler.compile_onnx(args.input)
-        
-        if args.verbose:
-            print("Compilation successful")
-        
-        # Generate output
+        # Export compiled model
         compiled_model.export(args.output)
         
-        if args.verbose:
-            print(f"Output written to: {args.output}")
-        
-        # Show report if requested
-        if args.show_report:
-            print("\n" + compiled_model.get_optimization_report())
+        # Generate optimization report
+        if args.report or args.verbose:
+            report = compiled_model.get_optimization_report()
+            if args.report:
+                with open(args.report, 'w') as f:
+                    f.write(report)
+                logger.info(f"📊 Optimization report saved to {args.report}")
+            if args.verbose:
+                print("\n" + report)
             
+        logger.info(f"✅ Successfully compiled {args.input} to {args.output}")
+        
+    except ValidationError as e:
+        logger.error(f"❌ Validation failed: {e}")
+        sys.exit(1)
+    except FileNotFoundError as e:
+        logger.error(f"❌ File error: {e}")
+        sys.exit(1)
+    except PermissionError as e:
+        logger.error(f"❌ Permission denied: {e}")
+        sys.exit(1)
     except Exception as e:
-        print(f"Error: {e}")
-        return 1
-    
-    return 0
+        logger.error(f"❌ Compilation failed: {e}")
+        if args.verbose:
+            import traceback
+            logger.error(f"Traceback:\n{traceback.format_exc()}")
+        sys.exit(1)
+    finally:
+        finalize_logging()
 
 
 def simulate_main():
-    """Main entry point for photon-simulate command.""" 
-    parser = argparse.ArgumentParser(description="Simulate photonic neural network execution")
+    """Main entry point for photon-simulate command."""
+    parser = argparse.ArgumentParser(
+        description="Simulate photonic neural network execution",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  photon-simulate model.phdl --input test_data.npy
+  photon-simulate model.phdl --noise realistic --precision 8bit
+        """
+    )
     
-    parser.add_argument("model", help="Compiled photonic model file (.pasm)")
+    parser.add_argument("model", help="Compiled photonic model file (.phdl)")
     parser.add_argument("--input", required=True, help="Input data file (.npy)")
-    parser.add_argument("--output", default="output.npy", help="Output file")
-    parser.add_argument("--noise-model", default="realistic",
-                       choices=["ideal", "realistic", "pessimistic"],
-                       help="Noise model for simulation")
-    parser.add_argument("--precision", default="8bit",
-                       choices=["8bit", "16bit", "fp16", "fp32"],
-                       help="Computation precision")
+    parser.add_argument("--output", help="Output file for results (.npy or .json)")
+    
+    # Simulation options
+    parser.add_argument("--noise", choices=["ideal", "realistic", "pessimistic"], 
+                       default="realistic", help="Noise model")
+    parser.add_argument("--precision", choices=["8bit", "16bit", "fp16", "fp32"],
+                       default="8bit", help="Precision mode")
     parser.add_argument("--crosstalk", type=float, default=-30.0,
-                       help="Optical crosstalk in dB")
-    parser.add_argument("--report", action="store_true",
-                       help="Generate simulation report")
-    parser.add_argument("-v", "--verbose", action="store_true")
+                       help="Crosstalk level in dB")
+    
+    # Analysis options
+    parser.add_argument("--compare-ideal", action="store_true",
+                       help="Compare with ideal (noiseless) simulation")
+    parser.add_argument("--runs", type=int, default=1,
+                       help="Number of simulation runs for statistics")
+    parser.add_argument("--verbose", "-v", action="store_true",
+                       help="Enable verbose output")
     
     args = parser.parse_args()
     
     try:
-        import numpy as np
-        
         # Load input data
-        if args.verbose:
-            print(f"Loading input data from {args.input}")
+        if not os.path.exists(args.input):
+            print(f"❌ Input file not found: {args.input}")
+            sys.exit(1)
+            
         input_data = np.load(args.input)
+        print(f"📥 Loaded input data: {input_data.shape}")
         
         # Create simulator
+        config = TargetConfig()  # Would parse from model file
         simulator = PhotonicSimulator(
-            noise_model=args.noise_model,
+            noise_model=args.noise,
             precision=args.precision,
-            crosstalk_db=args.crosstalk
+            crosstalk_db=args.crosstalk,
+            target_config=config
         )
         
-        if args.verbose:
-            print(f"Running simulation with {args.noise_model} noise model")
+        print(f"🔬 Starting simulation ({args.runs} runs)")
         
-        # For now, create a mock compiled model
-        class MockModel:
-            pass
-        mock_model = MockModel()
-        
-        # Run simulation
+        # Create mock model for simulation
+        class MockCompiledModel:
+            def __init__(self):
+                self.target_config = config
+                
+        mock_model = MockCompiledModel()
         result = simulator.run(mock_model, input_data)
         
-        # Save output
-        np.save(args.output, result.data)
+        print(f"📤 Output shape: {result.data.shape}")
+        print("✅ Simulation complete")
         
-        if args.verbose:
-            print(f"Simulation complete. Output saved to {args.output}")
-        
-        # Generate report if requested
-        if args.report:
-            report = simulator.get_simulation_report()
-            print("\n=== Simulation Report ===")
-            for key, value in report.items():
-                print(f"{key}: {value}")
-                
-    except ImportError:
-        print("Error: NumPy required for simulation. Install with: pip install numpy")
-        return 1
     except Exception as e:
-        print(f"Error: {e}")
-        return 1
-    
-    return 0
+        print(f"❌ Simulation failed: {e}")
+        sys.exit(1)
 
 
 def profile_main():
     """Main entry point for photon-profile command."""
     parser = argparse.ArgumentParser(description="Profile photonic model performance")
-    
-    parser.add_argument("model", help="Compiled photonic model (.pasm)")
-    parser.add_argument("--input-shape", required=True, 
-                       help="Input tensor shape (e.g., 1,3,224,224)")
+    parser.add_argument("model", help="Compiled photonic model file")
+    parser.add_argument("--input-shape", nargs='+', type=int, required=True,
+                       help="Input tensor shape")
     parser.add_argument("--runs", type=int, default=100,
                        help="Number of profiling runs")
-    parser.add_argument("--measure", default="latency,thermal,power",
-                       help="Metrics to measure (comma-separated)")
-    parser.add_argument("--output", help="Save profiling results to file")
+    parser.add_argument("--verbose", "-v", action="store_true")
     
     args = parser.parse_args()
     
-    try:
-        # Parse input shape
-        shape = tuple(map(int, args.input_shape.split(',')))
-        metrics = args.measure.split(',')
-        
-        print(f"Profiling model: {args.model}")
-        print(f"Input shape: {shape}")
-        print(f"Runs: {args.runs}")
-        print(f"Metrics: {metrics}")
-        print()
-        
-        # Mock profiling results
-        results = {
-            "latency_us": [12.3, 8.7, 8.9, 9.1] * (args.runs // 4),
-            "thermal_c": [0.8, 0.6, 0.7, 0.7] * (args.runs // 4),  
-            "power_mw": [45, 32, 33, 35] * (args.runs // 4)
-        }
-        
-        # Display results
-        print("Layer          Latency(μs)  Thermal(°C)  Power(mW)")
-        print("-" * 50)
-        layer_names = ["conv1", "layer1.0", "layer1.1", "layer2.0"]
-        for i, name in enumerate(layer_names):
-            if i < len(results["latency_us"]):
-                lat = results["latency_us"][i]
-                temp = results["thermal_c"][i] 
-                power = results["power_mw"][i]
-                print(f"{name:<12} {lat:>8.1f}     {temp:>6.1f}      {power:>4.0f}")
-        
-        total_lat = sum(results["latency_us"][:4])
-        total_temp = max(results["thermal_c"][:4])
-        total_power = sum(results["power_mw"][:4])
-        print("-" * 50)
-        print(f"{'Total':<12} {total_lat:>8.1f}     {total_temp:>6.1f}      {total_power:>4.0f}")
-        
-        if args.output:
-            import json
-            with open(args.output, 'w') as f:
-                json.dump(results, f, indent=2)
-            print(f"\nResults saved to {args.output}")
-            
-    except Exception as e:
-        print(f"Error: {e}")
-        return 1
-    
-    return 0
+    print(f"⏱️  Profiling photonic model: {args.model}")
+    print(f"   Input shape: {args.input_shape}")
+    print(f"   (Full profiling implementation pending)")
 
 
 def debug_main():
     """Main entry point for photon-debug command."""
     parser = argparse.ArgumentParser(description="Debug photonic model compilation")
-    
-    parser.add_argument("model", help="Photonic model file (.pasm)")
-    parser.add_argument("--breakpoint", help="Set breakpoint at operation")
-    parser.add_argument("--visualize", default="mesh,thermal,phase",
-                       help="Visualization modes")
-    parser.add_argument("--port", type=int, default=8080,
-                       help="Debug server port")
+    parser.add_argument("model", help="Model file to debug")
+    parser.add_argument("--port", type=int, default=8080, help="Debug server port")
     
     args = parser.parse_args()
     
-    print(f"Photonic Debugger v0.1.0")
-    print(f"Model: {args.model}")
-    print(f"Breakpoint: {args.breakpoint}")
-    print(f"Visualizations: {args.visualize}")
-    print(f"Debug server would start at: http://localhost:{args.port}")
-    print("\nNote: Interactive debugging not yet implemented")
-    
-    return 0
+    print(f"🐛 Photonic debugger starting...")
+    print(f"   Debug server would be available at http://localhost:{args.port}")
+    print("   (Full debugger implementation pending)")
 
 
 def benchmark_main():
     """Main entry point for photon-bench command."""
-    parser = argparse.ArgumentParser(description="Benchmark photonic compilation")
-    
-    parser.add_argument("models", nargs="+", help="Model files to benchmark")
-    parser.add_argument("--iterations", type=int, default=10,
-                       help="Benchmark iterations")
-    parser.add_argument("--output", help="Save benchmark results")
+    parser = argparse.ArgumentParser(description="Benchmark photonic hardware performance")
+    parser.add_argument("--suite", choices=["compilation", "execution", "accuracy", "all"],
+                       default="all", help="Benchmark suite")
+    parser.add_argument("--verbose", "-v", action="store_true")
     
     args = parser.parse_args()
     
-    print("Photonic Compiler Benchmarks")
-    print("=" * 40)
-    
-    for model in args.models:
-        print(f"\nBenchmarking: {model}")
-        print(f"Iterations: {args.iterations}")
-        
-        # Mock benchmark results
-        compile_times = [1.2, 1.1, 1.3, 1.0, 1.2] * (args.iterations // 5)
-        avg_time = sum(compile_times) / len(compile_times)
-        
-        print(f"Average compile time: {avg_time:.2f}s")
-        print(f"Min: {min(compile_times):.2f}s")
-        print(f"Max: {max(compile_times):.2f}s")
-    
-    return 0
+    print(f"🏁 Photonic benchmarking suite")
+    print(f"   Suite: {args.suite}")
+    print("   (Full benchmarking implementation pending)")

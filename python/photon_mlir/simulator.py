@@ -66,7 +66,7 @@ class PhotonicSimulator:
         elif hasattr(input_data, 'data'):
             data = input_data.data
         else:
-            data = np.array(input_data)
+            data = np.array(input_data, dtype=np.float32)
             
         # Apply precision quantization
         quantized_data = self._apply_quantization(data)
@@ -91,6 +91,9 @@ class PhotonicSimulator:
     
     def _apply_quantization(self, data: np.ndarray) -> np.ndarray:
         """Apply precision quantization."""
+        # Ensure data is a proper numpy array
+        data = np.asarray(data, dtype=np.float32)
+        
         if self.precision == "8bit":
             # Quantize to 8-bit signed integers
             data_scaled = np.clip(data * 127, -128, 127)
