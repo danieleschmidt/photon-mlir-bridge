@@ -514,7 +514,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ```bibtex
 @inproceedings{photon_mlir_bridge,
   title={Photon-MLIR: Compiling Neural Networks for Silicon Photonic Accelerators},
-  author={Your Name},
+  author={Daniel Schmidt},
   booktitle={International Symposium on Computer Architecture},
   year={2025}
 }
