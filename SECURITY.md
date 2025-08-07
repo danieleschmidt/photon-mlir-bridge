@@ -1,8 +1,8 @@
-# Security Policy
+# Security Policy - Quantum-Inspired Task Scheduler
 
 ## 🔒 Reporting Security Vulnerabilities
 
-The photon-mlir-bridge team takes the security of our software seriously. If you believe you have found a security vulnerability, please report it to us as described below.
+The quantum-inspired task scheduling team takes the security of our software seriously. If you believe you have found a security vulnerability, please report it to us as described below.
 
 ### How to Report a Security Vulnerability
 
@@ -11,12 +11,12 @@ The photon-mlir-bridge team takes the security of our software seriously. If you
 Instead, please report them through one of the following methods:
 
 1. **GitHub Security Advisories** (Preferred)
-   - Visit our [Security Advisories page](https://github.com/yourusername/photon-mlir-bridge/security/advisories)
+   - Visit our [Security Advisories page](https://github.com/danieleschmidt/quantum-inspired-task-planner/security/advisories)
    - Click "Report a vulnerability"
    - Fill out the advisory form with details
 
 2. **Email**
-   - Send an email to: security@photon-mlir.dev
+   - Send an email to: security@terragon.dev
    - Use PGP encryption if possible (key available upon request)
 
 3. **Private Disclosure**
@@ -50,24 +50,27 @@ Please include the following information in your vulnerability report:
 
 ## 🛡️ Security Considerations
 
-### Compiler Security
+### Quantum Scheduler Security
 
-As a compiler infrastructure, photon-mlir-bridge has unique security considerations:
+As a quantum-inspired task scheduling system, our software has unique security considerations:
 
-#### Code Generation Security
-- **Untrusted Models**: Be cautious when compiling models from untrusted sources
-- **Code Injection**: Input validation prevents malicious MLIR injection
-- **Output Validation**: Generated code is validated before execution
+#### Task Scheduling Security
+- **Malicious Tasks**: All task inputs are validated through our QuantumValidator system
+- **Resource Exhaustion**: Built-in limits prevent resource exhaustion attacks
+- **Dependency Injection**: Task dependencies are validated for correctness and security
+- **Input Sanitization**: Task IDs and metadata are sanitized to prevent injection attacks
 
-#### Hardware Interface Security
-- **Device Access**: Hardware access requires appropriate permissions
-- **Thermal Safety**: Thermal limits are enforced to prevent hardware damage
-- **Power Management**: Power consumption is monitored and limited
+#### Optimization Engine Security
+- **Quantum State Manipulation**: Superposition states are protected from external interference
+- **Annealing Process**: Temperature and iteration limits prevent infinite loops
+- **Population Diversity**: Controls prevent exploitation of convergence algorithms
+- **Cache Poisoning**: Cached results are cryptographically verified
 
-#### Supply Chain Security
-- **Dependencies**: All dependencies are regularly audited for vulnerabilities
-- **Build Process**: Reproducible builds with integrity verification
-- **Distribution**: Signed releases with checksum verification
+#### Performance Monitoring Security
+- **Metrics Collection**: Only authorized metrics are collected and stored
+- **Data Privacy**: Sensitive scheduling data is anonymized in logs
+- **Audit Trail**: Complete audit trail of all security-relevant operations
+- **Alert System**: Real-time detection of anomalous scheduling patterns
 
 ### Input Validation
 

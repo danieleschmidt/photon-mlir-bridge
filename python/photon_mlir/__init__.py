@@ -9,6 +9,10 @@ from .core import Device, Precision, TargetConfig
 from .simulator import PhotonicSimulator
 from .transforms import optimize_for_photonics
 from .visualizer import MeshVisualizer, OptimizationDashboard
+from .quantum_scheduler import QuantumTaskPlanner, QuantumInspiredScheduler, CompilationTask
+from .quantum_optimization import ParallelQuantumScheduler, OptimizationLevel, CacheStrategy
+from .quantum_validation import QuantumValidator, QuantumMonitor, ValidationLevel
+from .i18n import GlobalizationManager, SupportedLanguage, setup_i18n, t
 
 __version__ = "0.1.0"
 __author__ = "Daniel Schmidt"
@@ -25,5 +29,18 @@ __all__ = [
     "PhotonicSimulator",
     "optimize_for_photonics",
     "MeshVisualizer",
-    "OptimizationDashboard"
+    "OptimizationDashboard",
+    "QuantumTaskPlanner",
+    "QuantumInspiredScheduler", 
+    "CompilationTask",
+    "ParallelQuantumScheduler",
+    "OptimizationLevel",
+    "CacheStrategy",
+    "QuantumValidator",
+    "QuantumMonitor",
+    "ValidationLevel",
+    "GlobalizationManager",
+    "SupportedLanguage", 
+    "setup_i18n",
+    "t"
 ]

@@ -1,0 +1,160 @@
+# Multi-stage production Dockerfile for Quantum-Inspired Task Scheduler
+# Optimized for security, performance, and minimal attack surface
+
+ARG PYTHON_VERSION=3.11
+ARG ALPINE_VERSION=3.19
+
+# ========================================
+# Stage 1: Build dependencies and wheels
+# ========================================
+FROM python:${PYTHON_VERSION}-alpine${ALPINE_VERSION} as builder
+
+# Install build dependencies
+RUN apk add --no-cache \
+    build-base \
+    cmake \
+    ninja \
+    git \
+    llvm15-dev \
+    llvm15-static \
+    musl-dev \
+    linux-headers \
+    && rm -rf /var/cache/apk/*
+
+# Create build user (security best practice)
+RUN addgroup -g 1000 -S builduser && \
+    adduser -u 1000 -S builduser -G builduser
+
+USER builduser
+WORKDIR /build
+
+# Copy source code
+COPY --chown=builduser:builduser . .
+
+# Build wheels in isolated environment
+RUN python -m venv /build/venv && \
+    . /build/venv/bin/activate && \
+    pip install --upgrade pip setuptools wheel && \
+    pip install build && \
+    python -m build --wheel --sdist
+
+# Install and test the built package
+RUN . /build/venv/bin/activate && \
+    pip install dist/*.whl && \
+    python -c "import photon_mlir; print('Build successful')"
+
+# ========================================
+# Stage 2: Production runtime image
+# ========================================
+FROM python:${PYTHON_VERSION}-alpine${ALPINE_VERSION} as production
+
+# Metadata
+LABEL maintainer="Daniel Schmidt <daniel@terragon.dev>" \
+      version="0.1.0" \
+      description="Quantum-Inspired Task Scheduler for Photonic Compilation" \
+      org.opencontainers.image.title="photon-mlir-quantum" \
+      org.opencontainers.image.description="Production deployment of quantum-inspired task scheduler" \
+      org.opencontainers.image.version="0.1.0" \
+      org.opencontainers.image.authors="Daniel Schmidt <daniel@terragon.dev>" \
+      org.opencontainers.image.url="https://github.com/danieleschmidt/quantum-inspired-task-planner" \
+      org.opencontainers.image.source="https://github.com/danieleschmidt/quantum-inspired-task-planner" \
+      org.opencontainers.image.licenses="MIT"
+
+# Install runtime dependencies only
+RUN apk add --no-cache \
+    ca-certificates \
+    dumb-init \
+    su-exec \
+    tzdata \
+    tini \
+    && rm -rf /var/cache/apk/*
+
+# Create application user with restricted permissions
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup -h /app -s /sbin/nologin
+
+# Create application directories with proper permissions
+RUN mkdir -p /app/cache /app/logs /app/config /app/data && \
+    chown -R appuser:appgroup /app
+
+# Copy built wheel from builder stage
+COPY --from=builder --chown=root:root /build/dist/*.whl /tmp/
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir /tmp/*.whl && \
+    rm -rf /tmp/*.whl /root/.cache/pip
+
+# Copy configuration and scripts
+COPY --chown=appuser:appgroup deployment/config/production.json /app/config/
+COPY --chown=root:root deployment/scripts/entrypoint.sh /usr/local/bin/
+COPY --chown=root:root deployment/scripts/healthcheck.sh /usr/local/bin/
+
+# Make scripts executable
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh
+
+# Switch to application user
+USER appuser
+WORKDIR /app
+
+# Environment configuration
+ENV PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONHASHSEED=random \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    QUANTUM_CONFIG_PATH=/app/config/production.json \
+    QUANTUM_CACHE_DIR=/app/cache \
+    QUANTUM_LOG_DIR=/app/logs \
+    QUANTUM_DATA_DIR=/app/data
+
+# Expose application port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD /usr/local/bin/healthcheck.sh
+
+# Use tini as init system for proper signal handling
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]
+
+# Default command
+CMD ["server"]
+
+
+# ========================================
+# Stage 3: Development image (optional)
+# ========================================
+FROM production as development
+
+USER root
+
+# Install development tools
+RUN apk add --no-cache \
+    bash \
+    curl \
+    git \
+    vim \
+    htop \
+    strace \
+    && rm -rf /var/cache/apk/*
+
+# Install development Python packages
+RUN pip install --no-cache-dir \
+    pytest \
+    pytest-cov \
+    black \
+    isort \
+    mypy \
+    bandit \
+    safety
+
+USER appuser
+
+# Development environment
+ENV QUANTUM_ENV=development \
+    QUANTUM_DEBUG=1 \
+    QUANTUM_LOG_LEVEL=DEBUG
+
+CMD ["bash"]

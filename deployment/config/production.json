@@ -1,0 +1,276 @@
+{
+  "quantum_scheduler": {
+    "optimization_level": "balanced",
+    "cache_strategy": "hybrid",
+    "max_workers": 8,
+    "enable_validation": true,
+    "enable_monitoring": true,
+    "population_size": 50,
+    "max_iterations": 1000,
+    "cooling_rate": 0.95,
+    "convergence_threshold": 0.001,
+    "stagnation_limit": 100,
+    "error_recovery_attempts": 3
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "workers": 4,
+    "worker_class": "sync",
+    "worker_connections": 1000,
+    "timeout": 300,
+    "keepalive": 2,
+    "max_requests": 1000,
+    "max_requests_jitter": 100,
+    "preload_app": true,
+    "bind": "unix:/tmp/quantum-scheduler.sock",
+    "umask": 0,
+    "user": "appuser",
+    "group": "appgroup"
+  },
+  "logging": {
+    "version": 1,
+    "disable_existing_loggers": false,
+    "formatters": {
+      "default": {
+        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        "datefmt": "%Y-%m-%d %H:%M:%S"
+      },
+      "json": {
+        "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+        "format": "%(asctime)s %(name)s %(levelname)s %(message)s %(pathname)s %(lineno)d %(process)d %(thread)d"
+      },
+      "structured": {
+        "format": "[%(asctime)s] %(levelname)s in %(module)s: %(message)s"
+      }
+    },
+    "handlers": {
+      "console": {
+        "class": "logging.StreamHandler",
+        "level": "INFO",
+        "formatter": "default",
+        "stream": "ext://sys.stdout"
+      },
+      "file": {
+        "class": "logging.handlers.RotatingFileHandler",
+        "level": "INFO",
+        "formatter": "json",
+        "filename": "/app/logs/quantum-scheduler.log",
+        "maxBytes": 104857600,
+        "backupCount": 5,
+        "encoding": "utf8"
+      },
+      "error_file": {
+        "class": "logging.handlers.RotatingFileHandler", 
+        "level": "ERROR",
+        "formatter": "json",
+        "filename": "/app/logs/quantum-scheduler-error.log",
+        "maxBytes": 104857600,
+        "backupCount": 10,
+        "encoding": "utf8"
+      },
+      "security_file": {
+        "class": "logging.handlers.TimedRotatingFileHandler",
+        "level": "WARNING",
+        "formatter": "json", 
+        "filename": "/app/logs/security.log",
+        "when": "midnight",
+        "interval": 1,
+        "backupCount": 90,
+        "encoding": "utf8"
+      }
+    },
+    "loggers": {
+      "photon_mlir": {
+        "level": "INFO",
+        "handlers": ["console", "file", "error_file"],
+        "propagate": false
+      },
+      "photon_mlir.quantum_validation": {
+        "level": "WARNING", 
+        "handlers": ["console", "file", "security_file"],
+        "propagate": false
+      },
+      "gunicorn.error": {
+        "level": "INFO",
+        "handlers": ["console", "error_file"],
+        "propagate": false
+      },
+      "gunicorn.access": {
+        "level": "INFO",
+        "handlers": ["file"],
+        "propagate": false
+      }
+    },
+    "root": {
+      "level": "INFO",
+      "handlers": ["console", "file"]
+    }
+  },
+  "security": {
+    "enable_authentication": false,
+    "enable_authorization": false,
+    "enable_tls": false,
+    "tls_cert_file": "/app/certs/server.crt",
+    "tls_key_file": "/app/certs/server.key",
+    "allowed_origins": ["*"],
+    "cors_enabled": true,
+    "cors_allow_credentials": false,
+    "rate_limiting": {
+      "enabled": true,
+      "requests_per_minute": 60,
+      "burst_size": 10,
+      "storage_uri": "memory://",
+      "strategy": "fixed-window"
+    },
+    "input_validation": {
+      "max_task_count": 1000,
+      "max_dependency_depth": 50,
+      "max_resource_cpu": 32.0,
+      "max_resource_memory": 16384.0,
+      "max_duration": 3600.0,
+      "validation_level": "strict"
+    },
+    "audit_logging": {
+      "enabled": true,
+      "log_file": "/app/logs/audit.log",
+      "log_level": "INFO",
+      "include_request_data": false,
+      "include_response_data": false
+    }
+  },
+  "monitoring": {
+    "enabled": true,
+    "metrics_endpoint": "/metrics",
+    "health_endpoint": "/health",
+    "ready_endpoint": "/ready",
+    "info_endpoint": "/info",
+    "interval": 30,
+    "collect_system_metrics": true,
+    "collect_process_metrics": true,
+    "collect_quantum_metrics": true,
+    "metrics_format": "prometheus",
+    "alerts": {
+      "enabled": true,
+      "webhook_url": null,
+      "email_recipients": [],
+      "thresholds": {
+        "response_time_ms": 5000,
+        "error_rate_percent": 5.0,
+        "memory_usage_percent": 85.0,
+        "cpu_usage_percent": 80.0,
+        "cache_hit_rate_percent": 70.0
+      }
+    },
+    "performance_tracking": {
+      "enabled": true,
+      "sample_rate": 0.1,
+      "max_traces": 1000,
+      "trace_export_endpoint": null
+    }
+  },
+  "cache": {
+    "strategy": "hybrid",
+    "memory": {
+      "max_entries": 1000,
+      "ttl": 3600,
+      "cleanup_interval": 300
+    },
+    "disk": {
+      "directory": "/app/cache",
+      "max_size": "1GB", 
+      "compression": true,
+      "encryption": false
+    },
+    "distributed": {
+      "enabled": false,
+      "redis_url": null,
+      "cluster_nodes": [],
+      "key_prefix": "quantum_scheduler:",
+      "serialization": "pickle"
+    }
+  },
+  "database": {
+    "enabled": false,
+    "url": "sqlite:///app/data/quantum-scheduler.db",
+    "pool_size": 5,
+    "max_overflow": 10,
+    "pool_timeout": 30,
+    "pool_recycle": 3600,
+    "echo": false,
+    "migrations": {
+      "auto_upgrade": false,
+      "backup_before_upgrade": true
+    }
+  },
+  "features": {
+    "quantum_annealing": true,
+    "superposition_optimization": true, 
+    "entanglement_analysis": true,
+    "hierarchical_scheduling": true,
+    "adaptive_parameters": true,
+    "parallel_execution": true,
+    "cache_optimization": true,
+    "performance_profiling": true,
+    "validation_strict": true,
+    "monitoring_detailed": true
+  },
+  "limits": {
+    "max_concurrent_requests": 100,
+    "max_request_size": "10MB",
+    "max_response_size": "50MB", 
+    "max_execution_time": 600,
+    "max_memory_per_request": "512MB",
+    "max_tasks_per_request": 500,
+    "max_dependencies_per_task": 20,
+    "request_timeout": 300,
+    "keepalive_timeout": 2
+  },
+  "optimization": {
+    "preload_common_models": true,
+    "warm_up_schedulers": true,
+    "enable_jit_compilation": false,
+    "memory_pool_size": "128MB",
+    "thread_pool_size": 8,
+    "use_process_pool": false,
+    "garbage_collection": {
+      "enabled": true,
+      "threshold": [700, 10, 10],
+      "interval": 300
+    }
+  },
+  "environment": {
+    "name": "production",
+    "debug": false,
+    "testing": false,
+    "development": false,
+    "timezone": "UTC",
+    "locale": "en_US.UTF-8"
+  },
+  "api": {
+    "version": "v1",
+    "base_path": "/api/v1",
+    "documentation": {
+      "enabled": true,
+      "swagger_ui": true,
+      "redoc": true,
+      "openapi_url": "/api/v1/openapi.json"
+    },
+    "response_formats": ["json", "msgpack"],
+    "default_format": "json",
+    "compression": {
+      "enabled": true,
+      "algorithms": ["gzip", "deflate"],
+      "minimum_size": 1024
+    }
+  },
+  "internationalization": {
+    "enabled": true,
+    "default_language": "en",
+    "supported_languages": ["en", "es", "fr", "de", "ja", "zh"],
+    "locale_path": "/app/locales",
+    "fallback_language": "en",
+    "auto_detect": true,
+    "cache_translations": true
+  }
+}

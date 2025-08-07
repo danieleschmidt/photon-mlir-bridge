@@ -1,0 +1,241 @@
+{
+  "quantum": {
+    "scheduler": {
+      "name": "Quantum-Inspired Task Scheduler",
+      "description": "Advanced task scheduling using quantum-inspired optimization algorithms",
+      "status": {
+        "running": "Running",
+        "stopped": "Stopped",
+        "error": "Error",
+        "initializing": "Initializing",
+        "optimizing": "Optimizing",
+        "completed": "Completed",
+        "paused": "Paused",
+        "cancelled": "Cancelled",
+        "pending": "Pending"
+      },
+      "tasks": {
+        "created": "Task created successfully",
+        "validated": "Task validation completed",
+        "scheduled": "Task scheduled for execution",
+        "executed": "Task executed successfully",
+        "failed": "Task execution failed",
+        "cancelled": "Task was cancelled",
+        "timeout": "Task execution timed out",
+        "retry": "Task is being retried"
+      },
+      "optimization": {
+        "annealing": "Quantum annealing optimization in progress",
+        "converged": "Algorithm has converged to optimal solution",
+        "improved": "Solution quality improved",
+        "stagnated": "Solution has stagnated, trying different approach",
+        "population_evolved": "Population evolved to generation {generation}",
+        "temperature_cooled": "Annealing temperature cooled to {temperature:.4f}",
+        "best_energy": "Best solution energy: {energy:.2f}"
+      },
+      "cache": {
+        "hit": "Cache hit for key {key}",
+        "miss": "Cache miss for key {key}",
+        "cleared": "Cache cleared successfully",
+        "size": "Cache size: {size} entries",
+        "hit_rate": "Cache hit rate: {rate:.1%}"
+      }
+    }
+  },
+  "api": {
+    "errors": {
+      "validation_failed": "Input validation failed: {details}",
+      "task_not_found": "Task with ID '{task_id}' not found",
+      "scheduling_failed": "Task scheduling failed: {reason}",
+      "internal_error": "Internal server error occurred",
+      "rate_limited": "Rate limit exceeded. Please try again later",
+      "unauthorized": "Unauthorized access. Valid credentials required",
+      "forbidden": "Access forbidden. Insufficient permissions",
+      "timeout": "Request timed out after {seconds} seconds",
+      "invalid_format": "Invalid request format: {format}",
+      "resource_exhausted": "Resource limit exceeded: {resource}",
+      "dependency_error": "Dependency resolution failed: {dependency}"
+    },
+    "success": {
+      "task_created": "Task '{task_id}' created successfully",
+      "schedule_optimized": "Schedule optimized with makespan {makespan:.2f}s",
+      "cache_cleared": "Cache cleared successfully",
+      "system_healthy": "System health check passed",
+      "backup_completed": "Backup completed successfully",
+      "settings_updated": "Settings updated successfully"
+    },
+    "info": {
+      "processing": "Processing request...",
+      "queued": "Request queued for processing",
+      "progress": "Progress: {current}/{total} ({percent:.1%})",
+      "estimated_time": "Estimated completion time: {time}",
+      "version": "API version {version}"
+    }
+  },
+  "validation": {
+    "messages": {
+      "required_field": "This field is required",
+      "invalid_format": "Invalid format provided",
+      "out_of_range": "Value must be between {min} and {max}",
+      "circular_dependency": "Circular dependency detected in task graph",
+      "resource_limit": "Resource requirement exceeds limit: {resource} > {limit}",
+      "invalid_type": "Expected type {expected}, got {actual}",
+      "duplicate_id": "Duplicate task ID: {id}",
+      "missing_dependency": "Missing dependency: {dependency}",
+      "invalid_duration": "Task duration must be positive",
+      "security_violation": "Security validation failed: {violation}"
+    }
+  },
+  "ui": {
+    "buttons": {
+      "start": "Start",
+      "stop": "Stop", 
+      "pause": "Pause",
+      "resume": "Resume",
+      "reset": "Reset",
+      "submit": "Submit",
+      "cancel": "Cancel",
+      "save": "Save",
+      "load": "Load",
+      "export": "Export",
+      "import": "Import",
+      "delete": "Delete",
+      "edit": "Edit",
+      "view": "View",
+      "download": "Download",
+      "upload": "Upload",
+      "refresh": "Refresh",
+      "clear": "Clear",
+      "search": "Search",
+      "filter": "Filter",
+      "sort": "Sort"
+    },
+    "navigation": {
+      "dashboard": "Dashboard",
+      "tasks": "Tasks",
+      "schedule": "Schedule", 
+      "monitoring": "Monitoring",
+      "settings": "Settings",
+      "help": "Help",
+      "about": "About",
+      "documentation": "Documentation",
+      "api": "API Reference",
+      "status": "System Status",
+      "logs": "Logs",
+      "metrics": "Metrics",
+      "alerts": "Alerts"
+    },
+    "labels": {
+      "task_id": "Task ID",
+      "task_type": "Task Type",
+      "status": "Status",
+      "priority": "Priority",
+      "duration": "Duration",
+      "dependencies": "Dependencies",
+      "resources": "Resources",
+      "created_at": "Created At",
+      "updated_at": "Updated At",
+      "completed_at": "Completed At",
+      "makespan": "Makespan",
+      "utilization": "Resource Utilization",
+      "optimization_level": "Optimization Level",
+      "cache_strategy": "Cache Strategy"
+    }
+  },
+  "time": {
+    "formats": {
+      "short_date": "%Y-%m-%d",
+      "long_date": "%Y-%m-%d %H:%M:%S %Z",
+      "time_only": "%H:%M:%S",
+      "iso": "%Y-%m-%dT%H:%M:%S.%fZ"
+    },
+    "units": {
+      "nanosecond": "nanosecond",
+      "nanoseconds": "nanoseconds",
+      "microsecond": "microsecond", 
+      "microseconds": "microseconds",
+      "millisecond": "millisecond",
+      "milliseconds": "milliseconds",
+      "second": "second",
+      "seconds": "seconds",
+      "minute": "minute",
+      "minutes": "minutes",
+      "hour": "hour",
+      "hours": "hours",
+      "day": "day",
+      "days": "days",
+      "week": "week",
+      "weeks": "weeks",
+      "month": "month",
+      "months": "months",
+      "year": "year",
+      "years": "years"
+    },
+    "relative": {
+      "just_now": "just now",
+      "seconds_ago": "{count} second ago | {count} seconds ago",
+      "minutes_ago": "{count} minute ago | {count} minutes ago", 
+      "hours_ago": "{count} hour ago | {count} hours ago",
+      "days_ago": "{count} day ago | {count} days ago",
+      "in_seconds": "in {count} second | in {count} seconds",
+      "in_minutes": "in {count} minute | in {count} minutes",
+      "in_hours": "in {count} hour | in {count} hours",
+      "in_days": "in {count} day | in {count} days"
+    }
+  },
+  "monitoring": {
+    "metrics": {
+      "cpu_usage": "CPU Usage",
+      "memory_usage": "Memory Usage", 
+      "disk_usage": "Disk Usage",
+      "network_io": "Network I/O",
+      "active_tasks": "Active Tasks",
+      "completed_tasks": "Completed Tasks",
+      "failed_tasks": "Failed Tasks",
+      "avg_response_time": "Average Response Time",
+      "requests_per_second": "Requests per Second",
+      "cache_hit_rate": "Cache Hit Rate"
+    },
+    "alerts": {
+      "high_cpu": "High CPU usage detected: {usage:.1%}",
+      "high_memory": "High memory usage detected: {usage:.1%}",
+      "disk_full": "Disk space running low: {usage:.1%} used",
+      "task_failed": "Task '{task_id}' failed: {reason}",
+      "system_overload": "System overload detected",
+      "security_incident": "Security incident detected: {incident}"
+    }
+  },
+  "compliance": {
+    "gdpr": {
+      "consent_required": "We need your consent to process your data",
+      "data_processing": "Data Processing Information",
+      "privacy_policy": "Privacy Policy",
+      "cookie_notice": "This site uses cookies to enhance your experience",
+      "withdraw_consent": "Withdraw Consent",
+      "data_export": "Export Your Data",
+      "data_deletion": "Delete Your Data"
+    },
+    "ccpa": {
+      "privacy_notice": "California Privacy Notice",
+      "do_not_sell": "Do Not Sell My Personal Information",
+      "opt_out": "Opt Out of Data Sale"
+    },
+    "security": {
+      "data_encrypted": "Your data is encrypted in transit and at rest",
+      "secure_processing": "All processing is performed in secure environments",
+      "audit_trail": "Complete audit trail maintained for all operations"
+    }
+  },
+  "help": {
+    "getting_started": "Getting Started",
+    "user_guide": "User Guide",
+    "api_documentation": "API Documentation",
+    "faq": "Frequently Asked Questions",
+    "contact_support": "Contact Support",
+    "report_issue": "Report an Issue",
+    "feature_request": "Request a Feature",
+    "community": "Community Forum",
+    "tutorials": "Tutorials",
+    "best_practices": "Best Practices"
+  }
+}

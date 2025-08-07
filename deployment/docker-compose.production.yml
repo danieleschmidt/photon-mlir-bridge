@@ -1,0 +1,444 @@
+version: '3.8'
+
+# Production Docker Compose for Quantum-Inspired Task Scheduler
+# High availability setup with monitoring, logging, and security
+
+services:
+  # Main application service
+  quantum-scheduler:
+    build:
+      context: ..
+      dockerfile: deployment/docker/Dockerfile.production
+      target: production
+    image: quantum-scheduler:latest
+    container_name: quantum-scheduler-app
+    
+    restart: unless-stopped
+    
+    ports:
+      - "8080:8080"
+    
+    environment:
+      - QUANTUM_CONFIG_PATH=/app/config/production.json
+      - QUANTUM_LOG_LEVEL=INFO
+      - QUANTUM_PORT=8080
+      - QUANTUM_WORKERS=4
+      - QUANTUM_CACHE_DIR=/app/cache
+      - QUANTUM_LOG_DIR=/app/logs
+      - QUANTUM_DATA_DIR=/app/data
+      - QUANTUM_ENABLE_MONITORING=true
+      - QUANTUM_ENV=production
+      - TZ=UTC
+    
+    volumes:
+      - ./config/production.json:/app/config/production.json:ro
+      - quantum_cache:/app/cache
+      - quantum_logs:/app/logs
+      - quantum_data:/app/data
+      - /tmp:/tmp:ro
+    
+    healthcheck:
+      test: ["/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    security_opt:
+      - no-new-privileges:true
+    
+    cap_drop:
+      - ALL
+    
+    cap_add:
+      - NET_BIND_SERVICE
+    
+    read_only: false
+    
+    tmpfs:
+      - /tmp:size=500M,noexec,nosuid,nodev
+    
+    depends_on:
+      - redis
+      - prometheus
+      - grafana
+    
+    networks:
+      - quantum-network
+      - monitoring
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.quantum.rule=Host(`quantum-scheduler.localhost`)"
+      - "traefik.http.services.quantum.loadbalancer.server.port=8080"
+      - "traefik.http.routers.quantum.tls=true"
+      - "prometheus.scrape=true"
+      - "prometheus.port=8080"
+      - "prometheus.path=/metrics"
+
+  # Load balancer
+  traefik:
+    image: traefik:v3.0
+    container_name: quantum-traefik
+    
+    restart: unless-stopped
+    
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.email=admin@example.com
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --metrics.prometheus=true
+      - --log.level=INFO
+      - --accesslog=true
+    
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8081:8080"  # Dashboard
+    
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/letsencrypt
+    
+    networks:
+      - quantum-network
+      - monitoring
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`)"
+      - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
+
+  # Redis for caching and session storage
+  redis:
+    image: redis:7-alpine
+    container_name: quantum-redis
+    
+    restart: unless-stopped
+    
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-quantum123}
+    
+    volumes:
+      - redis_data:/data
+    
+    ports:
+      - "6379:6379"
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    
+    networks:
+      - quantum-network
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: quantum-prometheus
+    
+    restart: unless-stopped
+    
+    ports:
+      - "9090:9090"
+    
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    
+    networks:
+      - monitoring
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.localhost`)"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: quantum-grafana
+    
+    restart: unless-stopped
+    
+    ports:
+      - "3000:3000"
+    
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-quantum123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    
+    networks:
+      - monitoring
+    
+    depends_on:
+      - prometheus
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.localhost`)"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  # Log aggregation with Fluentd
+  fluentd:
+    image: fluent/fluentd:v1.16-1
+    container_name: quantum-fluentd
+    
+    restart: unless-stopped
+    
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    
+    volumes:
+      - ./logging/fluentd.conf:/fluentd/etc/fluent.conf:ro
+      - quantum_logs:/app/logs:ro
+      - fluentd_logs:/var/log/fluentd
+    
+    networks:
+      - monitoring
+    
+    depends_on:
+      - elasticsearch
+
+  # Elasticsearch for log storage
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: quantum-elasticsearch
+    
+    restart: unless-stopped
+    
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+    
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    
+    ports:
+      - "9200:9200"
+    
+    networks:
+      - monitoring
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+
+  # Kibana for log visualization
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: quantum-kibana
+    
+    restart: unless-stopped
+    
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - xpack.security.enabled=false
+      - xpack.encryptedSavedObjects.encryptionKey=min-32-byte-long-strong-encryption-key
+    
+    ports:
+      - "5601:5601"
+    
+    networks:
+      - monitoring
+    
+    depends_on:
+      - elasticsearch
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kibana.rule=Host(`kibana.localhost`)"
+      - "traefik.http.services.kibana.loadbalancer.server.port=5601"
+
+  # PostgreSQL for persistent data storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: quantum-postgres
+    
+    restart: unless-stopped
+    
+    environment:
+      - POSTGRES_DB=quantum_scheduler
+      - POSTGRES_USER=quantum
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-quantum123}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    
+    ports:
+      - "5432:5432"
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quantum -d quantum_scheduler"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+    networks:
+      - quantum-network
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+
+  # Security scanning with Trivy
+  trivy:
+    image: aquasec/trivy:latest
+    container_name: quantum-trivy
+    
+    restart: "no"
+    
+    command: server --listen 0.0.0.0:8082
+    
+    ports:
+      - "8082:8082"
+    
+    volumes:
+      - trivy_cache:/root/.cache/trivy
+    
+    networks:
+      - monitoring
+    
+    profiles:
+      - security
+
+  # Backup service
+  backup:
+    image: quantum-scheduler:latest
+    container_name: quantum-backup
+    
+    restart: "no"
+    
+    command: ["/usr/local/bin/backup.sh"]
+    
+    volumes:
+      - quantum_data:/backup/data:ro
+      - quantum_logs:/backup/logs:ro
+      - postgres_data:/backup/postgres:ro
+      - backup_storage:/backup/output
+      - ./scripts/backup.sh:/usr/local/bin/backup.sh:ro
+    
+    environment:
+      - BACKUP_SCHEDULE=0 2 * * *  # Daily at 2 AM
+      - BACKUP_RETENTION_DAYS=30
+      - S3_BUCKET=${BACKUP_S3_BUCKET}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    
+    networks:
+      - quantum-network
+    
+    profiles:
+      - backup
+
+# Network definitions
+networks:
+  quantum-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  
+  monitoring:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+# Volume definitions
+volumes:
+  quantum_cache:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=2048m,uid=1001,gid=1001
+  
+  quantum_logs:
+    driver: local
+  
+  quantum_data:
+    driver: local
+  
+  redis_data:
+    driver: local
+  
+  postgres_data:
+    driver: local
+  
+  prometheus_data:
+    driver: local
+  
+  grafana_data:
+    driver: local
+  
+  elasticsearch_data:
+    driver: local
+  
+  fluentd_logs:
+    driver: local
+  
+  traefik_certs:
+    driver: local
+  
+  trivy_cache:
+    driver: local
+  
+  backup_storage:
+    driver: local
