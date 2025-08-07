@@ -1,0 +1,35 @@
+[bandit]
+# Bandit configuration for quantum-inspired task scheduler security scanning
+
+exclude_dirs = [
+    "tests",
+    "build", 
+    "dist",
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    "node_modules"
+]
+
+# Severity levels: LOW, MEDIUM, HIGH  
+skips = [
+    # Skip test-related issues
+    "B101",  # assert_used - acceptable in tests
+    "B601",  # paramiko_calls - if we use paramiko for legitimate purposes
+]
+
+# Test framework exceptions
+[bandit.assert_used]
+skips = ["*/tests/*", "*/test_*.py"]
+
+# Allowed hardcoded password patterns (for test fixtures)
+[bandit.hardcoded_password_string]
+word_list = ["test", "example", "dummy", "placeholder"]
+
+# Custom confidence levels
+confidence = "MEDIUM"
+severity = "MEDIUM"
+
+# Output format options
+format = "json"
+output = "bandit-report.json"

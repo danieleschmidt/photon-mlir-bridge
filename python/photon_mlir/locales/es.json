@@ -1,0 +1,218 @@
+{
+  "quantum": {
+    "scheduler": {
+      "name": "Planificador de Tareas Inspirado en Cuántica",
+      "description": "Planificación avanzada de tareas usando algoritmos de optimización inspirados en la cuántica",
+      "status": {
+        "running": "Ejecutándose",
+        "stopped": "Detenido",
+        "error": "Error",
+        "initializing": "Inicializando",
+        "optimizing": "Optimizando",
+        "completed": "Completado",
+        "paused": "Pausado",
+        "cancelled": "Cancelado", 
+        "pending": "Pendiente"
+      },
+      "tasks": {
+        "created": "Tarea creada exitosamente",
+        "validated": "Validación de tarea completada",
+        "scheduled": "Tarea programada para ejecución",
+        "executed": "Tarea ejecutada exitosamente",
+        "failed": "La ejecución de la tarea falló",
+        "cancelled": "La tarea fue cancelada",
+        "timeout": "La ejecución de la tarea agotó el tiempo",
+        "retry": "La tarea está siendo reintentada"
+      },
+      "optimization": {
+        "annealing": "Optimización de recocido cuántico en progreso",
+        "converged": "El algoritmo ha convergido a la solución óptima",
+        "improved": "La calidad de la solución mejoró",
+        "stagnated": "La solución se ha estancado, probando enfoque diferente",
+        "population_evolved": "La población evolucionó a la generación {generation}",
+        "temperature_cooled": "La temperatura de recocido se enfrió a {temperature:.4f}",
+        "best_energy": "Mejor energía de solución: {energy:.2f}"
+      },
+      "cache": {
+        "hit": "Acierto de caché para clave {key}",
+        "miss": "Fallo de caché para clave {key}",
+        "cleared": "Caché limpiado exitosamente",
+        "size": "Tamaño del caché: {size} entradas",
+        "hit_rate": "Tasa de aciertos del caché: {rate:.1%}"
+      }
+    }
+  },
+  "api": {
+    "errors": {
+      "validation_failed": "La validación de entrada falló: {details}",
+      "task_not_found": "Tarea con ID '{task_id}' no encontrada",
+      "scheduling_failed": "La programación de tareas falló: {reason}",
+      "internal_error": "Ocurrió un error interno del servidor",
+      "rate_limited": "Límite de velocidad excedido. Inténtelo de nuevo más tarde",
+      "unauthorized": "Acceso no autorizado. Se requieren credenciales válidas",
+      "forbidden": "Acceso prohibido. Permisos insuficientes",
+      "timeout": "La solicitud agotó el tiempo después de {seconds} segundos",
+      "invalid_format": "Formato de solicitud inválido: {format}",
+      "resource_exhausted": "Límite de recursos excedido: {resource}",
+      "dependency_error": "La resolución de dependencias falló: {dependency}"
+    },
+    "success": {
+      "task_created": "Tarea '{task_id}' creada exitosamente",
+      "schedule_optimized": "Horario optimizado con makespan {makespan:.2f}s",
+      "cache_cleared": "Caché limpiado exitosamente",
+      "system_healthy": "La verificación de salud del sistema pasó",
+      "backup_completed": "Respaldo completado exitosamente",
+      "settings_updated": "Configuraciones actualizadas exitosamente"
+    },
+    "info": {
+      "processing": "Procesando solicitud...",
+      "queued": "Solicitud en cola para procesamiento",
+      "progress": "Progreso: {current}/{total} ({percent:.1%})",
+      "estimated_time": "Tiempo estimado de finalización: {time}",
+      "version": "Versión de API {version}"
+    }
+  },
+  "validation": {
+    "messages": {
+      "required_field": "Este campo es requerido",
+      "invalid_format": "Formato inválido proporcionado",
+      "out_of_range": "El valor debe estar entre {min} y {max}",
+      "circular_dependency": "Dependencia circular detectada en el grafo de tareas",
+      "resource_limit": "El requerimiento de recursos excede el límite: {resource} > {limit}",
+      "invalid_type": "Tipo esperado {expected}, obtenido {actual}",
+      "duplicate_id": "ID de tarea duplicado: {id}",
+      "missing_dependency": "Dependencia faltante: {dependency}",
+      "invalid_duration": "La duración de la tarea debe ser positiva",
+      "security_violation": "La validación de seguridad falló: {violation}"
+    }
+  },
+  "ui": {
+    "buttons": {
+      "start": "Iniciar",
+      "stop": "Detener",
+      "pause": "Pausar", 
+      "resume": "Reanudar",
+      "reset": "Reiniciar",
+      "submit": "Enviar",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "load": "Cargar",
+      "export": "Exportar",
+      "import": "Importar",
+      "delete": "Eliminar",
+      "edit": "Editar",
+      "view": "Ver",
+      "download": "Descargar",
+      "upload": "Subir",
+      "refresh": "Actualizar",
+      "clear": "Limpiar",
+      "search": "Buscar",
+      "filter": "Filtrar",
+      "sort": "Ordenar"
+    },
+    "navigation": {
+      "dashboard": "Panel de Control",
+      "tasks": "Tareas",
+      "schedule": "Horario",
+      "monitoring": "Monitoreo",
+      "settings": "Configuraciones",
+      "help": "Ayuda",
+      "about": "Acerca de",
+      "documentation": "Documentación",
+      "api": "Referencia de API",
+      "status": "Estado del Sistema",
+      "logs": "Registros",
+      "metrics": "Métricas",
+      "alerts": "Alertas"
+    },
+    "labels": {
+      "task_id": "ID de Tarea",
+      "task_type": "Tipo de Tarea",
+      "status": "Estado",
+      "priority": "Prioridad",
+      "duration": "Duración",
+      "dependencies": "Dependencias",
+      "resources": "Recursos",
+      "created_at": "Creado en",
+      "updated_at": "Actualizado en", 
+      "completed_at": "Completado en",
+      "makespan": "Makespan",
+      "utilization": "Utilización de Recursos",
+      "optimization_level": "Nivel de Optimización",
+      "cache_strategy": "Estrategia de Caché"
+    }
+  },
+  "time": {
+    "units": {
+      "nanosecond": "nanosegundo",
+      "nanoseconds": "nanosegundos",
+      "microsecond": "microsegundo",
+      "microseconds": "microsegundos", 
+      "millisecond": "milisegundo",
+      "milliseconds": "milisegundos",
+      "second": "segundo",
+      "seconds": "segundos",
+      "minute": "minuto",
+      "minutes": "minutos",
+      "hour": "hora",
+      "hours": "horas",
+      "day": "día",
+      "days": "días",
+      "week": "semana",
+      "weeks": "semanas",
+      "month": "mes",
+      "months": "meses",
+      "year": "año",
+      "years": "años"
+    },
+    "relative": {
+      "just_now": "ahora mismo",
+      "seconds_ago": "hace {count} segundo | hace {count} segundos",
+      "minutes_ago": "hace {count} minuto | hace {count} minutos",
+      "hours_ago": "hace {count} hora | hace {count} horas", 
+      "days_ago": "hace {count} día | hace {count} días",
+      "in_seconds": "en {count} segundo | en {count} segundos",
+      "in_minutes": "en {count} minuto | en {count} minutos",
+      "in_hours": "en {count} hora | en {count} horas",
+      "in_days": "en {count} día | en {count} días"
+    }
+  },
+  "monitoring": {
+    "metrics": {
+      "cpu_usage": "Uso de CPU",
+      "memory_usage": "Uso de Memoria",
+      "disk_usage": "Uso de Disco",
+      "network_io": "E/S de Red",
+      "active_tasks": "Tareas Activas",
+      "completed_tasks": "Tareas Completadas",
+      "failed_tasks": "Tareas Fallidas",
+      "avg_response_time": "Tiempo de Respuesta Promedio",
+      "requests_per_second": "Solicitudes por Segundo",
+      "cache_hit_rate": "Tasa de Aciertos del Caché"
+    },
+    "alerts": {
+      "high_cpu": "Uso alto de CPU detectado: {usage:.1%}",
+      "high_memory": "Uso alto de memoria detectado: {usage:.1%}",
+      "disk_full": "Espacio en disco bajo: {usage:.1%} usado",
+      "task_failed": "La tarea '{task_id}' falló: {reason}",
+      "system_overload": "Sobrecarga del sistema detectada",
+      "security_incident": "Incidente de seguridad detectado: {incident}"
+    }
+  },
+  "compliance": {
+    "gdpr": {
+      "consent_required": "Necesitamos su consentimiento para procesar sus datos",
+      "data_processing": "Información de Procesamiento de Datos",
+      "privacy_policy": "Política de Privacidad",
+      "cookie_notice": "Este sitio usa cookies para mejorar su experiencia",
+      "withdraw_consent": "Retirar Consentimiento",
+      "data_export": "Exportar Sus Datos",
+      "data_deletion": "Eliminar Sus Datos"
+    },
+    "security": {
+      "data_encrypted": "Sus datos están cifrados en tránsito y en reposo",
+      "secure_processing": "Todo el procesamiento se realiza en entornos seguros",
+      "audit_trail": "Se mantiene un registro de auditoría completo para todas las operaciones"
+    }
+  }
+}

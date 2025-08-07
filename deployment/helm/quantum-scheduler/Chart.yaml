@@ -1,0 +1,40 @@
+apiVersion: v2
+name: quantum-scheduler
+description: A Helm chart for deploying the Quantum-Inspired Task Scheduler
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/danieleschmidt/quantum-inspired-task-planner
+sources:
+  - https://github.com/danieleschmidt/quantum-inspired-task-planner
+maintainers:
+  - name: Daniel Schmidt
+    email: daniel@terragon.dev
+    url: https://terragon.dev
+keywords:
+  - quantum
+  - scheduler
+  - task-planning
+  - photonic
+  - mlir
+  - optimization
+annotations:
+  category: Development
+  licenses: MIT
+dependencies:
+  - name: redis
+    version: "~18.1.0"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled
+  - name: postgresql
+    version: "~12.12.0" 
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgresql.enabled
+  - name: prometheus
+    version: "~25.1.0"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: prometheus.enabled
+  - name: grafana
+    version: "~7.0.0"
+    repository: "https://grafana.github.io/helm-charts"
+    condition: grafana.enabled
