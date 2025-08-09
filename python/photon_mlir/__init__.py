@@ -9,9 +9,13 @@ from .core import Device, Precision, TargetConfig
 from .simulator import PhotonicSimulator
 from .transforms import optimize_for_photonics
 from .visualizer import MeshVisualizer, OptimizationDashboard
-from .quantum_scheduler import QuantumTaskPlanner, QuantumInspiredScheduler, CompilationTask
+from .quantum_scheduler import QuantumTaskPlanner, QuantumInspiredScheduler, CompilationTask, TaskType
 from .quantum_optimization import ParallelQuantumScheduler, OptimizationLevel, CacheStrategy
 from .quantum_validation import QuantumValidator, QuantumMonitor, ValidationLevel
+from .thermal_optimization import (
+    ThermalAwareOptimizer, ThermalAwareBenchmark, ThermalModel, 
+    CoolingStrategy, ThermalConstraints, PhotonicDevice
+)
 from .i18n import GlobalizationManager, SupportedLanguage, setup_i18n, t
 
 __version__ = "0.1.0"
@@ -33,12 +37,19 @@ __all__ = [
     "QuantumTaskPlanner",
     "QuantumInspiredScheduler", 
     "CompilationTask",
+    "TaskType",
     "ParallelQuantumScheduler",
     "OptimizationLevel",
     "CacheStrategy",
     "QuantumValidator",
     "QuantumMonitor",
     "ValidationLevel",
+    "ThermalAwareOptimizer",
+    "ThermalAwareBenchmark",
+    "ThermalModel",
+    "CoolingStrategy",
+    "ThermalConstraints",
+    "PhotonicDevice",
     "GlobalizationManager",
     "SupportedLanguage", 
     "setup_i18n",

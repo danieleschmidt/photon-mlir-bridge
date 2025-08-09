@@ -27,6 +27,9 @@ class TaskType(Enum):
     MESH_MAPPING = "mesh_mapping"
     PHASE_OPTIMIZATION = "phase_optimization"
     POWER_BALANCING = "power_balancing"
+    WAVELENGTH_ALLOCATION = "wavelength_allocation"  # New: Wavelength resource management
+    CROSSTALK_MINIMIZATION = "crosstalk_minimization"  # New: Optical crosstalk reduction
+    CALIBRATION_INJECTION = "calibration_injection"  # New: Runtime calibration insertion
     CODE_GENERATION = "code_generation"
 
 
@@ -50,24 +53,89 @@ class CompilationTask:
     superposition_weights: Dict[int, float] = field(default_factory=dict)
     entangled_tasks: Set[str] = field(default_factory=set)
     
+    # Photonic-specific properties
+    thermal_load: float = 0.0  # Thermal energy generated (mW)
+    phase_shifts_required: int = 0  # Number of phase shifters needed
+    wavelength_channels: Set[int] = field(default_factory=set)  # Required wavelength channels
+    optical_power_budget: float = 1.0  # Optical power consumption (mW)
+    crosstalk_sensitivity: float = 0.1  # Sensitivity to optical crosstalk (0-1)
+    calibration_frequency: float = 0.0  # Required calibration rate (Hz)
+    
     def __post_init__(self):
-        """Initialize quantum properties."""
+        """Initialize quantum and photonic properties."""
         if not self.resource_requirements:
             self.resource_requirements = {
                 "cpu": 1.0,
                 "memory": 512.0,  # MB
                 "gpu": 0.0
             }
+        
+        # Initialize photonic-specific properties based on task type
+        self._initialize_photonic_properties()
+    
+    def _initialize_photonic_properties(self):
+        """Initialize photonic-specific properties based on task type."""
+        photonic_profiles = {
+            TaskType.PHASE_OPTIMIZATION: {
+                "thermal_load": 15.0,  # High thermal load from phase shifters
+                "phase_shifts_required": 64,
+                "optical_power_budget": 2.5,
+                "crosstalk_sensitivity": 0.3
+            },
+            TaskType.THERMAL_COMPENSATION: {
+                "thermal_load": 5.0,  # Low thermal load
+                "calibration_frequency": 10.0,  # 10 Hz calibration
+                "optical_power_budget": 0.5
+            },
+            TaskType.WAVELENGTH_ALLOCATION: {
+                "wavelength_channels": {1550, 1551, 1552},  # C-band channels
+                "optical_power_budget": 3.0,
+                "crosstalk_sensitivity": 0.8
+            },
+            TaskType.CROSSTALK_MINIMIZATION: {
+                "thermal_load": 2.0,
+                "crosstalk_sensitivity": 0.05,  # Very low after optimization
+                "optical_power_budget": 1.0
+            }
+        }
+        
+        if self.task_type in photonic_profiles:
+            profile = photonic_profiles[self.task_type]
+            for key, value in profile.items():
+                if hasattr(self, key):
+                    setattr(self, key, value)
+    
+    def get_thermal_footprint(self) -> float:
+        """Calculate thermal footprint considering task duration and load."""
+        return self.thermal_load * self.estimated_duration
+    
+    def get_optical_complexity(self) -> float:
+        """Calculate optical complexity score."""
+        complexity = (
+            self.phase_shifts_required * 0.1 +
+            len(self.wavelength_channels) * 0.5 +
+            self.optical_power_budget * 0.2 +
+            self.crosstalk_sensitivity * 10
+        )
+        return complexity
 
 
 @dataclass 
 class SchedulingState:
-    """Represents a quantum-inspired scheduling state."""
+    """Represents a quantum-inspired scheduling state with photonic awareness."""
     tasks: List[CompilationTask]
     schedule: Dict[int, List[str]]  # timeslot -> task_ids
     total_energy: float = float('inf')
     makespan: float = float('inf')
     resource_utilization: float = 0.0
+    
+    # Photonic-specific metrics
+    peak_thermal_load: float = 0.0  # Peak simultaneous thermal load (mW)
+    total_phase_shifts: int = 0  # Total phase shifts required
+    wavelength_utilization: float = 0.0  # Wavelength channel efficiency
+    optical_power_efficiency: float = 0.0  # Optical power usage efficiency
+    thermal_hotspots: List[Tuple[int, float]] = field(default_factory=list)  # (timeslot, thermal_load)
+    crosstalk_violations: int = 0  # Number of potential crosstalk issues
     
     def calculate_fitness(self) -> float:
         """Calculate fitness score using quantum-inspired energy function."""
@@ -697,7 +765,7 @@ class QuantumTaskPlanner:
         )
         tasks.append(photonic_task)
         
-        # Parallel optimization tasks
+        # Parallel optimization tasks with photonic-specific tasks
         mesh_task = self._create_task(
             TaskType.MESH_MAPPING,
             dependencies={photonic_task.id},
@@ -719,21 +787,46 @@ class QuantumTaskPlanner:
             resource_requirements={"cpu": 2.0, "memory": 1024.0}
         )
         
-        tasks.extend([mesh_task, phase_task, power_task])
+        # New photonic-specific tasks
+        wavelength_task = self._create_task(
+            TaskType.WAVELENGTH_ALLOCATION,
+            dependencies={photonic_task.id},
+            estimated_duration=2.0,
+            resource_requirements={"cpu": 2.0, "memory": 1024.0}
+        )
         
-        # Thermal compensation (depends on mesh and phase)
+        crosstalk_task = self._create_task(
+            TaskType.CROSSTALK_MINIMIZATION,
+            dependencies={mesh_task.id, wavelength_task.id},
+            estimated_duration=3.5,
+            resource_requirements={"cpu": 3.0, "memory": 1536.0}
+        )
+        
+        tasks.extend([mesh_task, phase_task, power_task, wavelength_task, crosstalk_task])
+        
+        # Thermal compensation (depends on mesh, phase, and crosstalk optimization)
         thermal_task = self._create_task(
             TaskType.THERMAL_COMPENSATION,
-            dependencies={mesh_task.id, phase_task.id},
+            dependencies={mesh_task.id, phase_task.id, crosstalk_task.id},
             estimated_duration=3.0,
             resource_requirements={"cpu": 2.0, "memory": 1024.0}
         )
-        tasks.append(thermal_task)
         
-        # Code generation (final step)
+        # Calibration injection (depends on thermal compensation)
+        calibration_task = self._create_task(
+            TaskType.CALIBRATION_INJECTION,
+            dependencies={thermal_task.id},
+            estimated_duration=1.5,
+            resource_requirements={"cpu": 1.0, "memory": 512.0}
+        )
+        
+        tasks.extend([thermal_task, calibration_task])
+        
+        # Code generation (final step - depends on all optimization tasks)
         codegen_task = self._create_task(
             TaskType.CODE_GENERATION,
-            dependencies={mesh_task.id, phase_task.id, power_task.id, thermal_task.id},
+            dependencies={mesh_task.id, phase_task.id, power_task.id, 
+                         wavelength_task.id, crosstalk_task.id, calibration_task.id},
             estimated_duration=1.5,
             resource_requirements={"cpu": 1.0, "memory": 512.0}
         )

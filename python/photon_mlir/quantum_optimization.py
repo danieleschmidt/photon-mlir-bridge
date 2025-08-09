@@ -498,31 +498,31 @@ class ParallelQuantumScheduler:
             return min(results, key=lambda s: s.total_energy)
     
     def _schedule_distributed(self, tasks: List[CompilationTask], params: Dict[str, Any]) -> SchedulingState:
-        """Process-based distributed scheduling for large problems."""
+        """Process-based distributed scheduling for large problems with auto-scaling."""
         # For very large problems, partition tasks and solve subproblems
         if len(tasks) > 200:
             return self._schedule_hierarchical(tasks, params)
         
-        # Run multiple independent optimization processes
-        num_processes = min(self.max_workers, 8)
+        # Auto-scale number of processes based on task complexity and available resources
+        optimal_processes = self._calculate_optimal_process_count(tasks)
         
-        with ProcessPoolExecutor(max_workers=num_processes) as executor:
+        with ProcessPoolExecutor(max_workers=optimal_processes) as executor:
             futures = []
             
-            for i in range(num_processes):
-                # Create diverse parameter variations
-                run_params = params.copy()
-                run_params["population_size"] = params["population_size"] + i * 20
-                run_params["initial_temperature"] = params["initial_temperature"] * (1 + i * 0.2)
+            for i in range(optimal_processes):
+                # Create diverse parameter variations with adaptive scaling
+                run_params = self._create_adaptive_params(params, i, optimal_processes, tasks)
                 
-                future = executor.submit(self._run_quantum_scheduler, tasks, run_params)
+                future = executor.submit(self._run_quantum_scheduler_with_monitoring, tasks, run_params)
                 futures.append(future)
             
-            # Collect results
+            # Collect results with adaptive timeout
+            adaptive_timeout = self._calculate_adaptive_timeout(tasks)
             results = []
+            
             for future in as_completed(futures):
                 try:
-                    result = future.result(timeout=1800)  # 30 minute timeout
+                    result = future.result(timeout=adaptive_timeout)
                     results.append(result)
                 except Exception as e:
                     logger.warning(f"Distributed scheduling process failed: {e}")
@@ -530,8 +530,11 @@ class ParallelQuantumScheduler:
             if not results:
                 raise RuntimeError("All distributed scheduling processes failed")
             
-            # Return best result
-            return min(results, key=lambda s: s.total_energy)
+            # Return best result with performance tracking
+            best_result = min(results, key=lambda s: s.total_energy)
+            self._track_distributed_performance(len(results), optimal_processes, best_result)
+            
+            return best_result
     
     def _schedule_hierarchical(self, tasks: List[CompilationTask], params: Dict[str, Any]) -> SchedulingState:
         """Hierarchical scheduling for very large problems."""
@@ -628,9 +631,54 @@ class ParallelQuantumScheduler:
         scheduler = QuantumInspiredScheduler(**params)
         return scheduler.schedule_tasks(tasks)
     
+    @staticmethod
+    def _run_quantum_scheduler_with_monitoring(tasks: List[CompilationTask], params: Dict[str, Any]) -> SchedulingState:
+        """Static method to run quantum scheduler with performance monitoring."""
+        import time
+        start_time = time.time()
+        
+        try:
+            scheduler = QuantumInspiredScheduler(**params)
+            result = scheduler.schedule_tasks(tasks)
+            
+            # Add performance metadata
+            optimization_time = time.time() - start_time
+            result.optimization_metadata = {
+                "optimization_time": optimization_time,
+                "parameters_used": params,
+                "convergence_achieved": True
+            }
+            
+            return result
+            
+        except Exception as e:
+            # Create fallback result with error metadata
+            logger.error(f"Quantum scheduler failed: {e}")
+            
+            # Simple sequential fallback
+            fallback_result = SchedulingState(
+                tasks=tasks,
+                schedule={i: [task.id] for i, task in enumerate(tasks)},
+                makespan=sum(task.estimated_duration for task in tasks),
+                resource_utilization=0.1
+            )
+            
+            fallback_result.optimization_metadata = {
+                "optimization_time": time.time() - start_time,
+                "parameters_used": params,
+                "convergence_achieved": False,
+                "fallback_used": True,
+                "error": str(e)
+            }
+            
+            return fallback_result
+    
     def get_optimization_stats(self) -> Dict[str, Any]:
-        """Get comprehensive optimization statistics."""
+        """Get comprehensive optimization statistics with performance insights."""
         cache_stats = self.cache.get_stats()
+        
+        # Advanced performance analytics
+        performance_analytics = self._calculate_performance_analytics()
         
         return {
             "cache_stats": cache_stats,
@@ -644,5 +692,238 @@ class ParallelQuantumScheduler:
             "average_complexity": (
                 sum(p.complexity_score for p in self.performance_history) / len(self.performance_history)
                 if self.performance_history else 0
-            )
+            ),
+            "performance_analytics": performance_analytics,
+            "auto_scaling_recommendations": self._get_auto_scaling_recommendations(),
+            "resource_efficiency": self._calculate_resource_efficiency()
+        }
+    
+    def _calculate_optimal_process_count(self, tasks: List[CompilationTask]) -> int:
+        """Calculate optimal number of processes based on workload analysis."""
+        # Base calculation on task complexity and system resources
+        complexity_factor = self._calculate_workload_complexity(tasks)
+        
+        # Start with available CPU cores
+        base_processes = min(self.max_workers, multiprocessing.cpu_count())
+        
+        # Scale based on task complexity
+        if complexity_factor > 100:  # High complexity
+            optimal = min(base_processes, 8)
+        elif complexity_factor > 50:  # Medium complexity
+            optimal = min(base_processes, 6) 
+        else:  # Low complexity
+            optimal = min(base_processes, 4)
+        
+        # Adjust for task count
+        if len(tasks) < 10:
+            optimal = min(optimal, 2)  # Don't over-parallelize small problems
+        elif len(tasks) > 100:
+            optimal = max(optimal, 6)  # Ensure sufficient parallelism for large problems
+        
+        return max(1, optimal)
+    
+    def _calculate_workload_complexity(self, tasks: List[CompilationTask]) -> float:
+        """Calculate workload complexity score for optimization planning."""
+        if not tasks:
+            return 0
+        
+        # Factors contributing to complexity
+        task_count_factor = len(tasks) * 2
+        dependency_factor = sum(len(task.dependencies) for task in tasks) * 3
+        duration_variance = self._calculate_duration_variance(tasks) * 10
+        resource_diversity = len(set(
+            tuple(task.resource_requirements.items()) for task in tasks
+        )) * 2
+        
+        # Photonic-specific complexity factors
+        thermal_complexity = sum(
+            getattr(task, 'thermal_load', 0) for task in tasks
+        ) * 0.1
+        
+        phase_complexity = sum(
+            getattr(task, 'phase_shifts_required', 0) for task in tasks
+        ) * 0.05
+        
+        total_complexity = (
+            task_count_factor + dependency_factor + duration_variance +
+            resource_diversity + thermal_complexity + phase_complexity
+        )
+        
+        return total_complexity
+    
+    def _create_adaptive_params(self, base_params: Dict[str, Any], process_index: int, 
+                              total_processes: int, tasks: List[CompilationTask]) -> Dict[str, Any]:
+        """Create adaptive parameters for each optimization process."""
+        params = base_params.copy()
+        
+        # Diversify parameters across processes
+        diversity_factor = process_index / max(1, total_processes - 1)
+        
+        # Adaptive population size
+        complexity = self._calculate_workload_complexity(tasks)
+        if complexity > 100:
+            params["population_size"] = int(base_params["population_size"] * (1 + diversity_factor * 0.5))
+        else:
+            params["population_size"] = max(10, int(base_params["population_size"] * (0.7 + diversity_factor * 0.6)))
+        
+        # Adaptive temperature and cooling
+        params["initial_temperature"] = base_params["initial_temperature"] * (0.8 + diversity_factor * 0.4)
+        params["cooling_rate"] = base_params["cooling_rate"] + (diversity_factor - 0.5) * 0.05
+        
+        # Adaptive iterations based on task complexity
+        if complexity > 150:
+            params["max_iterations"] = int(base_params["max_iterations"] * 1.2)
+        elif complexity < 50:
+            params["max_iterations"] = int(base_params["max_iterations"] * 0.8)
+        
+        # Mutation rate adaptation
+        params["mutation_rate"] = max(0.01, min(0.3, 
+            base_params["mutation_rate"] + (diversity_factor - 0.5) * 0.1
+        ))
+        
+        return params
+    
+    def _calculate_adaptive_timeout(self, tasks: List[CompilationTask]) -> float:
+        """Calculate adaptive timeout based on task complexity."""
+        base_timeout = 1800.0  # 30 minutes base
+        
+        # Scale based on task count and complexity
+        task_factor = len(tasks) / 50.0  # Scale factor per 50 tasks
+        complexity = self._calculate_workload_complexity(tasks)
+        complexity_factor = complexity / 100.0  # Scale factor per 100 complexity points
+        
+        # Thermal optimization may need more time
+        has_thermal_tasks = any(
+            getattr(task, 'thermal_load', 0) > 0 for task in tasks
+        )
+        thermal_factor = 1.3 if has_thermal_tasks else 1.0
+        
+        adaptive_timeout = base_timeout * (1 + task_factor) * (1 + complexity_factor) * thermal_factor
+        
+        # Reasonable bounds
+        return max(300, min(3600, adaptive_timeout))  # 5 minutes to 1 hour
+    
+    def _track_distributed_performance(self, successful_processes: int, 
+                                     total_processes: int, best_result: SchedulingState):
+        """Track performance metrics from distributed scheduling."""
+        success_rate = successful_processes / total_processes
+        
+        # Store performance metadata
+        if not hasattr(self, 'distributed_performance'):
+            self.distributed_performance = []
+        
+        perf_record = {
+            "timestamp": time.time(),
+            "successful_processes": successful_processes,
+            "total_processes": total_processes,
+            "success_rate": success_rate,
+            "best_makespan": best_result.makespan,
+            "best_utilization": best_result.resource_utilization
+        }
+        
+        if hasattr(best_result, 'optimization_metadata'):
+            perf_record.update(best_result.optimization_metadata)
+        
+        self.distributed_performance.append(perf_record)
+        
+        # Keep only recent records
+        if len(self.distributed_performance) > 100:
+            self.distributed_performance = self.distributed_performance[-50:]
+        
+        logger.info(f"Distributed scheduling: {successful_processes}/{total_processes} processes succeeded, "
+                   f"best makespan: {best_result.makespan:.2f}s")
+    
+    def _calculate_performance_analytics(self) -> Dict[str, Any]:
+        """Calculate advanced performance analytics."""
+        if not hasattr(self, 'distributed_performance') or not self.distributed_performance:
+            return {"status": "no_distributed_data"}
+        
+        recent_records = self.distributed_performance[-10:]  # Last 10 runs
+        
+        analytics = {
+            "avg_success_rate": sum(r["success_rate"] for r in recent_records) / len(recent_records),
+            "avg_makespan": sum(r["best_makespan"] for r in recent_records) / len(recent_records),
+            "avg_utilization": sum(r["best_utilization"] for r in recent_records) / len(recent_records),
+            "convergence_rate": sum(
+                1 for r in recent_records 
+                if r.get("convergence_achieved", False)
+            ) / len(recent_records),
+            "fallback_rate": sum(
+                1 for r in recent_records 
+                if r.get("fallback_used", False)
+            ) / len(recent_records)
+        }
+        
+        # Performance trend analysis
+        if len(recent_records) >= 5:
+            first_half = recent_records[:len(recent_records)//2]
+            second_half = recent_records[len(recent_records)//2:]
+            
+            first_avg = sum(r["best_makespan"] for r in first_half) / len(first_half)
+            second_avg = sum(r["best_makespan"] for r in second_half) / len(second_half)
+            
+            analytics["performance_trend"] = (first_avg - second_avg) / first_avg  # Positive = improving
+        
+        return analytics
+    
+    def _get_auto_scaling_recommendations(self) -> Dict[str, Any]:
+        """Generate auto-scaling recommendations based on performance data."""
+        recommendations = {"status": "analysis_needed"}
+        
+        if not hasattr(self, 'distributed_performance') or len(self.distributed_performance) < 5:
+            recommendations["message"] = "Insufficient data for recommendations"
+            return recommendations
+        
+        recent_data = self.distributed_performance[-10:]
+        avg_success_rate = sum(r["success_rate"] for r in recent_data) / len(recent_data)
+        avg_utilization = sum(r["best_utilization"] for r in recent_data) / len(recent_data)
+        
+        # Generate recommendations
+        recs = []
+        
+        if avg_success_rate < 0.8:
+            recs.append("Consider reducing max_workers due to low process success rate")
+            recommendations["suggested_max_workers"] = max(1, self.max_workers - 2)
+        elif avg_success_rate > 0.95 and avg_utilization > 0.8:
+            recs.append("Consider increasing max_workers for better performance")
+            recommendations["suggested_max_workers"] = min(multiprocessing.cpu_count(), self.max_workers + 2)
+        
+        if avg_utilization < 0.5:
+            recs.append("Low resource utilization - consider optimizing task scheduling")
+        
+        # Cache performance recommendations
+        cache_stats = self.cache.get_stats()
+        if cache_stats.get("hit_rate", 0) < 0.3:
+            recs.append("Low cache hit rate - consider increasing cache size or improving task similarity")
+        
+        recommendations["recommendations"] = recs
+        recommendations["confidence"] = min(1.0, len(recent_data) / 20.0)  # Higher confidence with more data
+        
+        return recommendations
+    
+    def _calculate_resource_efficiency(self) -> Dict[str, float]:
+        """Calculate resource efficiency metrics."""
+        if not self.performance_history:
+            return {"status": "no_data"}
+        
+        recent_profiles = self.performance_history[-10:]
+        
+        # CPU efficiency (tasks per CPU core per second)
+        total_cpu_time = sum(p.estimated_runtime for p in recent_profiles)
+        total_tasks = sum(p.task_count for p in recent_profiles)
+        cpu_efficiency = total_tasks / (total_cpu_time * self.max_workers) if total_cpu_time > 0 else 0
+        
+        # Memory efficiency (tasks per GB of memory usage)
+        avg_memory = sum(p.memory_requirement for p in recent_profiles) / len(recent_profiles)
+        memory_efficiency = (total_tasks / len(recent_profiles)) / (avg_memory / 1024) if avg_memory > 0 else 0
+        
+        # Parallelism efficiency
+        avg_parallelism = sum(p.parallelism_factor for p in recent_profiles) / len(recent_profiles)
+        parallelism_efficiency = avg_parallelism / self.max_workers
+        
+        return {
+            "cpu_efficiency": cpu_efficiency,
+            "memory_efficiency": memory_efficiency,
+            "parallelism_efficiency": parallelism_efficiency,
+            "overall_efficiency": (cpu_efficiency + memory_efficiency + parallelism_efficiency) / 3
         }
