@@ -107,3 +107,110 @@ LogicalResult OpticalEncodingOp::verify() {
   
   return success();
 }
+
+//===----------------------------------------------------------------------===//
+// Advanced Quantum-Photonic Operations
+//===----------------------------------------------------------------------===//
+
+LogicalResult QuantumPhaseGateOp::verify() {
+  float phase = getPhaseRadians().convertToFloat();
+  int32_t qubitIndex = getQubitIndex();
+  
+  if (phase < 0 || phase > 2 * M_PI) {
+    return emitOpError("quantum phase gate phase must be in range [0, 2π]");
+  }
+  
+  if (qubitIndex < 0) {
+    return emitOpError("qubit index must be non-negative");
+  }
+  
+  return success();
+}
+
+LogicalResult ThermalAwareSchedulingOp::verify() {
+  int32_t window = getSchedulingWindowMs();
+  
+  if (window <= 0 || window > 60000) {
+    return emitOpError("scheduling window must be in range (0, 60000]ms");
+  }
+  
+  // Validate thermal map dimensions
+  auto thermalMap = getThermalMap();
+  if (thermalMap.size() == 0) {
+    return emitOpError("thermal map cannot be empty");
+  }
+  
+  return success();
+}
+
+LogicalResult WavelengthMultiplexOp::verify() {
+  auto inputs = getInputs();
+  auto wavelengths = getWavelengthsNm();
+  
+  if (inputs.size() != wavelengths.size()) {
+    return emitOpError("number of inputs must match number of wavelengths");
+  }
+  
+  // Check for wavelength conflicts
+  std::set<int32_t> uniqueWavelengths;
+  for (auto wavelength : wavelengths) {
+    auto wavelengthValue = wavelength.cast<IntegerAttr>().getInt();
+    if (wavelengthValue < 1200 || wavelengthValue > 1700) {
+      return emitOpError("wavelengths must be in range 1200-1700 nm");
+    }
+    
+    if (uniqueWavelengths.count(wavelengthValue)) {
+      return emitOpError("duplicate wavelengths not allowed in multiplexing");
+    }
+    uniqueWavelengths.insert(wavelengthValue);
+  }
+  
+  return success();
+}
+
+LogicalResult MeshCalibrationOp::verify() {
+  float fidelity = getTargetFidelity().convertToFloat();
+  StringRef method = getCalibrationMethod();
+  
+  if (fidelity <= 0 || fidelity > 1.0) {
+    return emitOpError("target fidelity must be in range (0, 1]");
+  }
+  
+  if (method != "self_configuration" && method != "reference_beam" && 
+      method != "iterative_optimization") {
+    return emitOpError("unsupported calibration method. Supported: "
+                      "self_configuration, reference_beam, iterative_optimization");
+  }
+  
+  return success();
+}
+
+LogicalResult PowerBalancingOp::verify() {
+  float targetPower = getTargetPowerMw().convertToFloat();
+  float tolerance = getPowerTolerance().convertToFloat();
+  
+  if (targetPower <= 0 || targetPower > 100.0) {
+    return emitOpError("target power must be in range (0, 100] mW");
+  }
+  
+  if (tolerance <= 0 || tolerance >= 1.0) {
+    return emitOpError("power tolerance must be in range (0, 1)");
+  }
+  
+  return success();
+}
+
+LogicalResult CrosstalkMitigationOp::verify() {
+  float strength = getMitigationStrength().convertToFloat();
+  
+  if (strength < 0 || strength > 1.0) {
+    return emitOpError("mitigation strength must be in range [0, 1]");
+  }
+  
+  auto crosstalkMatrix = getCrosstalkMatrix();
+  if (crosstalkMatrix.size() == 0) {
+    return emitOpError("crosstalk matrix cannot be empty");
+  }
+  
+  return success();
+}
