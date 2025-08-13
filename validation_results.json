@@ -1,6 +1,6 @@
 {
-  "validation_timestamp": 1755108392.2960234,
-  "validation_duration_ms": 76.79271697998047,
+  "validation_timestamp": 1755108631.8960624,
+  "validation_duration_ms": 79.59103584289551,
   "overall_success": false,
   "test_results": {
     "file_structure": {
@@ -296,7 +296,7 @@
       "success": true,
       "performance_features": {
         "caching": {
-          "files_with_features": 13,
+          "files_with_features": 14,
           "details": [
             {
               "file": "python/photon_mlir/caching_system.py",
@@ -370,6 +370,12 @@
               "indicators": [
                 "cache",
                 "memoization"
+              ]
+            },
+            {
+              "file": "python/photon_mlir/secure_caching_system.py",
+              "indicators": [
+                "cache"
               ]
             },
             {
@@ -727,7 +733,7 @@
           ]
         },
         "profiling": {
-          "files_with_features": 24,
+          "files_with_features": 25,
           "details": [
             {
               "file": "python/photon_mlir/advanced_wdm_optimizer.py",
@@ -864,6 +870,12 @@
             },
             {
               "file": "python/photon_mlir/thermal_optimization.py",
+              "indicators": [
+                "time.time()"
+              ]
+            },
+            {
+              "file": "python/photon_mlir/secure_caching_system.py",
               "indicators": [
                 "time.time()"
               ]
