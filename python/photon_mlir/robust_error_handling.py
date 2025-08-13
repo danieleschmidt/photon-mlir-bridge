@@ -30,6 +30,11 @@ from collections import defaultdict, deque
 import json
 import hashlib
 import contextlib
+import asyncio
+from concurrent.futures import ThreadPoolExecutor, Future
+import queue
+import weakref
+import gc
 
 from .logging_config import get_global_logger
 
@@ -55,6 +60,10 @@ class ErrorCategory(Enum):
     TIMEOUT_ERROR = "timeout_error"
     MEMORY_ERROR = "memory_error"
     NUMERICAL_INSTABILITY = "numerical_instability"
+    WDM_OPTIMIZATION_ERROR = "wdm_optimization_error"
+    ML_THERMAL_PREDICTION_ERROR = "ml_thermal_prediction_error"
+    QUANTUM_HYBRID_ERROR = "quantum_hybrid_error"
+    CONCURRENCY_ERROR = "concurrency_error"
 
 
 @dataclass
@@ -265,7 +274,11 @@ class RobustErrorHandler:
             ErrorCategory.NUMERICAL_INSTABILITY: self._recover_from_numerical_instability,
             ErrorCategory.TIMEOUT_ERROR: self._recover_from_timeout,
             ErrorCategory.MEMORY_ERROR: self._recover_from_memory_error,
-            ErrorCategory.NETWORK_FAILURE: self._recover_from_network_failure
+            ErrorCategory.NETWORK_FAILURE: self._recover_from_network_failure,
+            ErrorCategory.WDM_OPTIMIZATION_ERROR: self._recover_from_wdm_error,
+            ErrorCategory.ML_THERMAL_PREDICTION_ERROR: self._recover_from_ml_thermal_error,
+            ErrorCategory.QUANTUM_HYBRID_ERROR: self._recover_from_quantum_hybrid_error,
+            ErrorCategory.CONCURRENCY_ERROR: self._recover_from_concurrency_error
         }
         
     def handle_error(self, error: Exception, context: ErrorContext) -> Tuple[bool, Any]:
@@ -594,6 +607,176 @@ class RobustErrorHandler:
             'actions_taken': recovery_actions,
             'offline_capabilities': True
         }
+        
+    def _recover_from_wdm_error(self, error: Exception, context: ErrorContext) -> Optional[Any]:
+        """Recovery strategy for WDM optimization errors."""
+        
+        self.logger.info("Recovering from WDM optimization error...")
+        
+        # Strategy: Reduce channel count and adjust spacing
+        recovery_actions = []
+        
+        if 'wdm_channels' in context.system_state:
+            original_channels = context.system_state['wdm_channels']
+            reduced_channels = max(2, original_channels - 2)  # Reduce by 2 channels
+            context.system_state['wdm_channels'] = reduced_channels
+            recovery_actions.append(f"Reduced WDM channels from {original_channels} to {reduced_channels}")
+            
+        if 'channel_spacing_ghz' not in context.system_state:
+            context.system_state['channel_spacing_ghz'] = 50.0  # Standard spacing
+            recovery_actions.append("Set default channel spacing to 50GHz")
+        else:
+            original_spacing = context.system_state['channel_spacing_ghz']
+            increased_spacing = min(200.0, original_spacing * 1.2)  # Increase by 20%
+            context.system_state['channel_spacing_ghz'] = increased_spacing
+            recovery_actions.append(f"Increased channel spacing from {original_spacing}GHz to {increased_spacing}GHz")
+            
+        # Enable adaptive WDM optimization
+        context.system_state['adaptive_wdm'] = True
+        recovery_actions.append("Enabled adaptive WDM optimization")
+        
+        if recovery_actions:
+            context.recovery_suggestions.extend(recovery_actions)
+            
+            return {
+                'recovery_method': 'wdm_optimization_recovery',
+                'actions_taken': recovery_actions,
+                'new_channel_count': context.system_state.get('wdm_channels', 4),
+                'new_spacing_ghz': context.system_state.get('channel_spacing_ghz', 50.0)
+            }
+            
+        return None
+        
+    def _recover_from_ml_thermal_error(self, error: Exception, context: ErrorContext) -> Optional[Any]:
+        """Recovery strategy for ML thermal prediction errors."""
+        
+        self.logger.info("Recovering from ML thermal prediction error...")
+        
+        # Strategy: Fallback to classical thermal models
+        recovery_actions = []
+        
+        context.system_state['use_classical_thermal'] = True
+        recovery_actions.append("Fallback to classical thermal modeling")
+        
+        if 'ml_model_complexity' in context.system_state:
+            original_complexity = context.system_state['ml_model_complexity']
+            reduced_complexity = max(1, original_complexity - 1)
+            context.system_state['ml_model_complexity'] = reduced_complexity
+            recovery_actions.append(f"Reduced ML model complexity from {original_complexity} to {reduced_complexity}")
+            
+        # Enable thermal safety margins
+        context.system_state['thermal_safety_margin_c'] = 10.0
+        recovery_actions.append("Increased thermal safety margin to 10°C")
+        
+        # Enable more frequent thermal monitoring
+        if 'thermal_monitoring_interval_ms' in context.system_state:
+            original_interval = context.system_state['thermal_monitoring_interval_ms']
+            reduced_interval = max(100, original_interval // 2)
+            context.system_state['thermal_monitoring_interval_ms'] = reduced_interval
+            recovery_actions.append(f"Increased thermal monitoring frequency: {original_interval}ms → {reduced_interval}ms")
+        else:
+            context.system_state['thermal_monitoring_interval_ms'] = 500
+            recovery_actions.append("Set thermal monitoring interval to 500ms")
+            
+        if recovery_actions:
+            context.recovery_suggestions.extend(recovery_actions)
+            
+            return {
+                'recovery_method': 'thermal_prediction_recovery',
+                'actions_taken': recovery_actions,
+                'fallback_model': 'classical_thermal',
+                'safety_margin_c': 10.0
+            }
+            
+        return None
+        
+    def _recover_from_quantum_hybrid_error(self, error: Exception, context: ErrorContext) -> Optional[Any]:
+        """Recovery strategy for quantum-hybrid computing errors."""
+        
+        self.logger.info("Recovering from quantum-hybrid error...")
+        
+        # Strategy: Disable quantum features and use classical alternatives
+        recovery_actions = []
+        
+        context.system_state['quantum_mode'] = False
+        recovery_actions.append("Disabled quantum mode, using classical processing")
+        
+        if 'quantum_gate_count' in context.system_state:
+            context.system_state['quantum_gate_count'] = 0
+            recovery_actions.append("Removed all quantum gates from circuit")
+            
+        # Increase classical processing capacity
+        if 'classical_threads' in context.system_state:
+            original_threads = context.system_state['classical_threads']
+            increased_threads = min(8, original_threads * 2)  # Double threads up to 8
+            context.system_state['classical_threads'] = increased_threads
+            recovery_actions.append(f"Increased classical threads from {original_threads} to {increased_threads}")
+        else:
+            context.system_state['classical_threads'] = 4
+            recovery_actions.append("Set classical thread count to 4")
+            
+        # Enable quantum error mitigation simulation
+        context.system_state['simulate_quantum_errors'] = True
+        recovery_actions.append("Enabled quantum error simulation for validation")
+        
+        if recovery_actions:
+            context.recovery_suggestions.extend(recovery_actions)
+            
+            return {
+                'recovery_method': 'quantum_hybrid_recovery',
+                'actions_taken': recovery_actions,
+                'quantum_disabled': True,
+                'classical_threads': context.system_state.get('classical_threads', 4)
+            }
+            
+        return None
+        
+    def _recover_from_concurrency_error(self, error: Exception, context: ErrorContext) -> Optional[Any]:
+        """Recovery strategy for concurrency-related errors."""
+        
+        self.logger.info("Recovering from concurrency error...")
+        
+        # Strategy: Reduce parallelism and add synchronization
+        recovery_actions = []
+        
+        if 'max_workers' in context.system_state:
+            original_workers = context.system_state['max_workers']
+            reduced_workers = max(1, original_workers // 2)
+            context.system_state['max_workers'] = reduced_workers
+            recovery_actions.append(f"Reduced worker threads from {original_workers} to {reduced_workers}")
+        else:
+            context.system_state['max_workers'] = 2
+            recovery_actions.append("Set worker thread count to 2")
+            
+        # Enable thread safety features
+        context.system_state['thread_safe_mode'] = True
+        recovery_actions.append("Enabled thread-safe mode")
+        
+        # Add synchronization barriers
+        context.system_state['use_barriers'] = True
+        recovery_actions.append("Enabled synchronization barriers")
+        
+        # Increase timeout for thread operations
+        if 'thread_timeout_s' in context.system_state:
+            original_timeout = context.system_state['thread_timeout_s']
+            increased_timeout = original_timeout * 2
+            context.system_state['thread_timeout_s'] = increased_timeout
+            recovery_actions.append(f"Increased thread timeout from {original_timeout}s to {increased_timeout}s")
+        else:
+            context.system_state['thread_timeout_s'] = 30.0
+            recovery_actions.append("Set thread timeout to 30s")
+            
+        if recovery_actions:
+            context.recovery_suggestions.extend(recovery_actions)
+            
+            return {
+                'recovery_method': 'concurrency_recovery',
+                'actions_taken': recovery_actions,
+                'max_workers': context.system_state.get('max_workers', 2),
+                'thread_safe': True
+            }
+            
+        return None
         
     def get_error_statistics(self) -> Dict[str, Any]:
         """Get comprehensive error statistics."""
