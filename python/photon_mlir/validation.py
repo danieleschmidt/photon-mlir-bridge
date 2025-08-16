@@ -3,7 +3,13 @@ Comprehensive input validation and error handling for photonic compiler.
 Generation 2: Make it Robust - Validation and Error Handling
 """
 
-import numpy as np
+try:
+    import numpy as np
+    _NUMPY_AVAILABLE = True
+except ImportError:
+    _NUMPY_AVAILABLE = False
+    np = None
+
 from typing import Union, List, Tuple, Optional, Any, Dict
 from dataclasses import dataclass
 from enum import Enum
@@ -225,7 +231,7 @@ class PhotonicValidator:
         
         return result
     
-    def validate_input_data(self, data: Union[np.ndarray, List, Tuple], 
+    def validate_input_data(self, data: Union['np.ndarray', List, Tuple], 
                           expected_shape: Optional[Tuple[int, ...]] = None,
                           data_name: str = "input") -> ValidationResult:
         """Validate input data."""
@@ -233,7 +239,7 @@ class PhotonicValidator:
         
         try:
             # Convert to numpy array if needed
-            if not isinstance(data, np.ndarray):
+            if _NUMPY_AVAILABLE and not isinstance(data, np.ndarray):
                 try:
                     data = np.array(data)
                 except Exception as e:
@@ -384,7 +390,7 @@ class PhotonicValidator:
     
     def comprehensive_validation(self, config: TargetConfig, 
                                model_path: Optional[str] = None,
-                               input_data: Optional[np.ndarray] = None,
+                               input_data: Optional['np.ndarray'] = None,
                                simulation_params: Optional[Dict[str, Any]] = None) -> ValidationResult:
         """Perform comprehensive validation of all components."""
         print("🔍 Running comprehensive validation...")
