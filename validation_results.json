@@ -1,6 +1,6 @@
 {
-  "validation_timestamp": 1755490489.225308,
-  "validation_duration_ms": 221.98081016540527,
+  "validation_timestamp": 1755610758.5005789,
+  "validation_duration_ms": 149.97100830078125,
   "overall_success": false,
   "test_results": {
     "file_structure": {
@@ -254,37 +254,17 @@
     },
     "security": {
       "test_name": "security_validation",
-      "success": false,
+      "success": true,
       "security_checks": {
         "files_scanned": 10,
-        "issues_found": 2,
-        "issue_details": [
-          {
-            "file": "python/photon_mlir/caching_system.py",
-            "issues": {
-              "unsafe_pickle": [
-                "pickle.loads"
-              ]
-            }
-          },
-          {
-            "file": "python/photon_mlir/compiler.py",
-            "issues": {
-              "unsafe_eval": [
-                "compile("
-              ]
-            }
-          }
-        ],
+        "issues_found": 0,
+        "issue_details": [],
         "input_validation": {
           "validation_modules": 3,
           "validation_functions_found": 4
         }
       },
-      "errors": [
-        "Security issue in python/photon_mlir/caching_system.py: {'unsafe_pickle': ['pickle.loads']}",
-        "Security issue in python/photon_mlir/compiler.py: {'unsafe_eval': ['compile(']}"
-      ]
+      "errors": []
     },
     "performance": {
       "test_name": "performance_validation",
@@ -302,8 +282,7 @@
             {
               "file": "python/photon_mlir/caching_system.py",
               "indicators": [
-                "cache",
-                "memoization"
+                "cache"
               ]
             },
             {
@@ -314,6 +293,12 @@
             },
             {
               "file": "python/photon_mlir/config.py",
+              "indicators": [
+                "cache"
+              ]
+            },
+            {
+              "file": "python/photon_mlir/distributed_quantum_photonic_orchestrator.py",
               "indicators": [
                 "cache"
               ]
@@ -378,17 +363,11 @@
               "indicators": [
                 "cache"
               ]
-            },
-            {
-              "file": "python/photon_mlir/distributed_quantum_photonic_orchestrator.py",
-              "indicators": [
-                "cache"
-              ]
             }
           ]
         },
         "concurrency": {
-          "files_with_features": 23,
+          "files_with_features": 22,
           "details": [
             {
               "file": "python/photon_mlir/advanced_quantum_photonic_bridge.py",
@@ -406,16 +385,17 @@
               ]
             },
             {
-              "file": "python/photon_mlir/advanced_wdm_optimizer.py",
+              "file": "python/photon_mlir/advanced_thermal_quantum_manager.py",
               "indicators": [
                 "ThreadPoolExecutor",
                 "concurrent.futures"
               ]
             },
             {
-              "file": "python/photon_mlir/caching_system.py",
+              "file": "python/photon_mlir/advanced_wdm_optimizer.py",
               "indicators": [
-                "asyncio"
+                "ThreadPoolExecutor",
+                "concurrent.futures"
               ]
             },
             {
@@ -429,6 +409,14 @@
               "file": "python/photon_mlir/concurrency.py",
               "indicators": [
                 "ThreadPoolExecutor",
+                "concurrent.futures"
+              ]
+            },
+            {
+              "file": "python/photon_mlir/distributed_quantum_photonic_orchestrator.py",
+              "indicators": [
+                "ThreadPoolExecutor",
+                "asyncio",
                 "concurrent.futures"
               ]
             },
@@ -484,6 +472,13 @@
               ]
             },
             {
+              "file": "python/photon_mlir/quantum_photonic_fusion.py",
+              "indicators": [
+                "ThreadPoolExecutor",
+                "concurrent.futures"
+              ]
+            },
+            {
               "file": "python/photon_mlir/quantum_scheduler.py",
               "indicators": [
                 "ThreadPoolExecutor",
@@ -532,28 +527,6 @@
                 "ThreadPoolExecutor",
                 "concurrent.futures"
               ]
-            },
-            {
-              "file": "python/photon_mlir/advanced_thermal_quantum_manager.py",
-              "indicators": [
-                "ThreadPoolExecutor",
-                "concurrent.futures"
-              ]
-            },
-            {
-              "file": "python/photon_mlir/quantum_photonic_fusion.py",
-              "indicators": [
-                "ThreadPoolExecutor",
-                "concurrent.futures"
-              ]
-            },
-            {
-              "file": "python/photon_mlir/distributed_quantum_photonic_orchestrator.py",
-              "indicators": [
-                "ThreadPoolExecutor",
-                "asyncio",
-                "concurrent.futures"
-              ]
             }
           ]
         },
@@ -581,6 +554,12 @@
             },
             {
               "file": "python/photon_mlir/advanced_resilience_framework.py",
+              "indicators": [
+                "optimization"
+              ]
+            },
+            {
+              "file": "python/photon_mlir/advanced_thermal_quantum_manager.py",
               "indicators": [
                 "optimization"
               ]
@@ -619,6 +598,12 @@
             },
             {
               "file": "python/photon_mlir/config.py",
+              "indicators": [
+                "optimization"
+              ]
+            },
+            {
+              "file": "python/photon_mlir/distributed_quantum_photonic_orchestrator.py",
               "indicators": [
                 "optimization"
               ]
@@ -674,6 +659,12 @@
             },
             {
               "file": "python/photon_mlir/quantum_photonic_compiler.py",
+              "indicators": [
+                "optimization"
+              ]
+            },
+            {
+              "file": "python/photon_mlir/quantum_photonic_fusion.py",
               "indicators": [
                 "optimization"
               ]
@@ -743,41 +734,17 @@
               "indicators": [
                 "optimization"
               ]
-            },
-            {
-              "file": "python/photon_mlir/advanced_thermal_quantum_manager.py",
-              "indicators": [
-                "optimization"
-              ]
-            },
-            {
-              "file": "python/photon_mlir/quantum_photonic_fusion.py",
-              "indicators": [
-                "optimization"
-              ]
-            },
-            {
-              "file": "python/photon_mlir/distributed_quantum_photonic_orchestrator.py",
-              "indicators": [
-                "optimization"
-              ]
             }
           ]
         },
         "memory_management": {
-          "files_with_features": 7,
+          "files_with_features": 6,
           "details": [
             {
               "file": "python/photon_mlir/advanced_quantum_photonic_bridge.py",
               "indicators": [
                 "weakref",
                 "memory_limit"
-              ]
-            },
-            {
-              "file": "python/photon_mlir/caching_system.py",
-              "indicators": [
-                "weakref"
               ]
             },
             {
@@ -842,6 +809,12 @@
               ]
             },
             {
+              "file": "python/photon_mlir/advanced_thermal_quantum_manager.py",
+              "indicators": [
+                "time.time()"
+              ]
+            },
+            {
               "file": "python/photon_mlir/advanced_wdm_optimizer.py",
               "indicators": [
                 "time.time()"
@@ -879,6 +852,12 @@
             },
             {
               "file": "python/photon_mlir/diagnostics.py",
+              "indicators": [
+                "time.time()"
+              ]
+            },
+            {
+              "file": "python/photon_mlir/distributed_quantum_photonic_orchestrator.py",
               "indicators": [
                 "time.time()"
               ]
@@ -945,6 +924,12 @@
               ]
             },
             {
+              "file": "python/photon_mlir/quantum_photonic_fusion.py",
+              "indicators": [
+                "time.time()"
+              ]
+            },
+            {
               "file": "python/photon_mlir/quantum_scheduler.py",
               "indicators": [
                 "time.time()"
@@ -1003,24 +988,6 @@
               "indicators": [
                 "time.time()"
               ]
-            },
-            {
-              "file": "python/photon_mlir/advanced_thermal_quantum_manager.py",
-              "indicators": [
-                "time.time()"
-              ]
-            },
-            {
-              "file": "python/photon_mlir/quantum_photonic_fusion.py",
-              "indicators": [
-                "time.time()"
-              ]
-            },
-            {
-              "file": "python/photon_mlir/distributed_quantum_photonic_orchestrator.py",
-              "indicators": [
-                "time.time()"
-              ]
             }
           ]
         },
@@ -1043,15 +1010,14 @@
   },
   "summary": {
     "total_tests": 6,
-    "passed_tests": 4,
-    "failed_tests": 2,
-    "success_rate": 0.6666666666666666,
+    "passed_tests": 5,
+    "failed_tests": 1,
+    "success_rate": 0.8333333333333334,
     "overall_status": "FAILED"
   },
   "recommendations": [
     "\ud83d\udd27 Address failed validation tests before deployment",
-    "\u26a0\ufe0f Success rate below 80% - major improvements needed",
-    "\ud83d\udd12 Security issues detected - immediate attention required",
+    "\ud83d\udca1 Good progress - minor improvements recommended",
     "\ud83d\ude80 Advanced features well implemented - excellent scalability"
   ]
 }
