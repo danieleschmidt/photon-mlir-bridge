@@ -660,6 +660,9 @@ class GlobalizationManager:
         }
 
 
+# Alias for backward compatibility
+I18nManager = GlobalizationManager
+
 # Global instance for easy access
 _globalization_manager: Optional[GlobalizationManager] = None
 

@@ -3,8 +3,20 @@ Core photonic computing types and configuration.
 """
 
 from enum import Enum
-from typing import Tuple
+from typing import Tuple, Optional, List
 from dataclasses import dataclass
+
+# Add PhotonicTensor placeholder for imports
+class PhotonicTensor:
+    """Placeholder for photonic tensor operations."""
+    def __init__(self, data=None):
+        self.data = data
+        
+    def shape(self):
+        return getattr(self.data, 'shape', (0,))
+        
+    def to_dict(self):
+        return {'data': str(self.data), 'shape': self.shape()}
 
 
 class Device(Enum):

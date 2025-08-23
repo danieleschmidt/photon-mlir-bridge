@@ -1,0 +1,16 @@
+{
+  "quantum": {
+    "scheduler": {
+      "name": "量子启发任务调度器",
+      "description": "使用量子启发优化算法的高级任务调度",
+      "status": {
+        "running": "运行中",
+        "stopped": "已停止",
+        "error": "错误",
+        "initializing": "初始化中",
+        "optimizing": "优化中",
+        "completed": "已完成"
+      }
+    }
+  }
+}

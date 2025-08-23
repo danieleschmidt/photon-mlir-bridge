@@ -6,7 +6,11 @@ This module implements enterprise-grade thermal management for quantum-photonic 
 with predictive analytics, real-time adaptation, and quantum error correction.
 """
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 import logging
 import time
 import threading
@@ -26,9 +30,9 @@ except ImportError:
     _TORCH_AVAILABLE = False
 
 from .logging_config import get_global_logger
-from .validation import PhotonicValidator, ValidationError
-from .security import SecureDataHandler
-from .robust_error_handling import PhotonicErrorHandler, ErrorSeverity
+# from .validation import PhotonicValidator, ValidationError
+# from .security import SecureDataHandler
+# from .robust_error_handling import PhotonicErrorHandler, ErrorSeverity
 
 
 class ThermalZoneStatus(Enum):

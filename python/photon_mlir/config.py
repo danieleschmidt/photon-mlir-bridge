@@ -4,8 +4,19 @@ Configuration management for photonic compiler.
 
 import os
 import json
-import yaml
-import toml
+try:
+    import yaml
+    _YAML_AVAILABLE = True
+except ImportError:
+    _YAML_AVAILABLE = False
+    yaml = None
+
+try:
+    import toml
+    _TOML_AVAILABLE = True
+except ImportError:
+    _TOML_AVAILABLE = False
+    toml = None
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
 from dataclasses import dataclass, asdict, field

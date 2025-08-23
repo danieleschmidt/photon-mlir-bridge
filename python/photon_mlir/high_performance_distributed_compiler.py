@@ -46,6 +46,7 @@ from .logging_config import get_global_logger
 from .core import TargetConfig, PhotonicTensor
 from .validation import ValidationResult
 from .compiler import PhotonicCompiler, CompiledPhotonicModel
+from .config import CompilerConfig
 
 
 class ComputeBackend(Enum):
@@ -995,3 +996,19 @@ def benchmark_distributed_compilation(model_paths: List[str],
             compiler.stop()
     
     return results
+
+
+# Export main classes and functions
+__all__ = [
+    'HighPerformanceDistributedCompiler',
+    'CompilerConfig',
+    'ComputeBackend',
+    'ScalingPolicy',
+    'OptimizationLevel',
+    'CompilationJob',
+    'WorkerMetrics',
+    'CompilationWorker',
+    'AutoScaler',
+    'create_distributed_compiler',
+    'benchmark_distributed_compilation'
+]

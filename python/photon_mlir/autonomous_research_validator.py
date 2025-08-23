@@ -12,7 +12,11 @@ This module implements comprehensive research validation capabilities including:
 """
 
 import asyncio
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 import scipy.stats
 import time
 import logging

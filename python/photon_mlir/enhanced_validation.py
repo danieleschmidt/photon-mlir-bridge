@@ -16,7 +16,11 @@ Key Validation Features:
 7. Contract-based programming with preconditions/postconditions
 """
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 import time
 import random
 import functools
@@ -892,7 +896,7 @@ class EnhancedValidationSystem:
         # Initialize components
         self.property_tester = PropertyBasedTester(validation_level)
         self.formal_verifier = FormalVerifier()
-        self.regression_detector = PerformanceReggressió
+        self.regression_detector = PerformanceRegessionDetector()
         
         # Validation statistics
         self.validation_sessions = []
@@ -1061,6 +1065,10 @@ class EnhancedValidationSystem:
             issues.append(f"{active_regressions} active performance regressions detected")
             
         return issues
+
+
+# Alias for compatibility and clear export
+ComprehensiveValidator = EnhancedValidationSystem
 
 
 # Demo and testing functions

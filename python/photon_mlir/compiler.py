@@ -6,7 +6,11 @@ Generation 2: Robust implementation with validation and logging.
 import os
 import tempfile
 from typing import Optional, Union, Dict, Any
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 
 try:
     import torch

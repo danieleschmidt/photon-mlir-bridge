@@ -6,7 +6,11 @@ in photonic neural network compilation, including superposition of scheduling st
 quantum annealing for optimization, and entanglement-inspired dependency resolution.
 """
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 from typing import List, Dict, Any, Tuple, Optional, Set
 from dataclasses import dataclass, field
 from enum import Enum

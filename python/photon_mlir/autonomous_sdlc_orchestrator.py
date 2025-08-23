@@ -784,7 +784,11 @@ Experimental Framework for Quantum-Photonic Research
 Advanced research capabilities with statistical validation
 """
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 import time
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
@@ -900,7 +904,11 @@ Next-generation quantum-photonic integration with autonomous capabilities
 """
 
 import asyncio
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 from typing import Dict, List, Tuple, Optional, Any, Union
 from dataclasses import dataclass
 from enum import Enum
