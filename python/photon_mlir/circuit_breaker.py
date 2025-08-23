@@ -348,7 +348,7 @@ class PhaseCoherenceCircuitBreaker:
                               f"(failures: {self.failure_count})")
 
 
-class CompositePho tonicCircuitBreaker:
+class CompositePhotonicCircuitBreaker:
     """
     Composite circuit breaker that manages multiple protection mechanisms.
     

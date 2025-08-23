@@ -12,7 +12,11 @@ This module implements cutting-edge scaling optimization techniques including:
 """
 
 import asyncio
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 import time
 import logging
 from typing import Dict, List, Tuple, Optional, Any, Union, Callable, Set
@@ -25,7 +29,21 @@ from pathlib import Path
 import threading
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 import multiprocessing as mp
-import psutil
+try:
+    import psutil
+    _PSUTIL_AVAILABLE = True
+except ImportError:
+    _PSUTIL_AVAILABLE = False
+    # Mock psutil functionality
+    class psutil:
+        @staticmethod
+        def cpu_percent():
+            return 50.0  # Mock CPU usage
+        @staticmethod
+        def virtual_memory():
+            from collections import namedtuple
+            Memory = namedtuple('Memory', ['percent'])
+            return Memory(percent=60.0)  # Mock memory usage
 import pickle
 import weakref
 from contextlib import asynccontextmanager

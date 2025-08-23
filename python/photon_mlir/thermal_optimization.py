@@ -12,7 +12,11 @@ Research Contribution:
 - Adaptive temperature scaling based on silicon photonic device characteristics
 """
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 import logging
 from typing import List, Dict, Any, Tuple, Optional
 from dataclasses import dataclass, field

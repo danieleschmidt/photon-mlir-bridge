@@ -16,7 +16,11 @@ Key Research Contributions:
 Publication Target: Nature Computing, IEEE TC, ACM TOCS
 """
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 from typing import Dict, List, Tuple, Optional, Any, Callable, Union, Set
 from dataclasses import dataclass, field
 from enum import Enum

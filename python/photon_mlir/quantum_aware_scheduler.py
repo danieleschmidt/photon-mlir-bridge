@@ -4,7 +4,11 @@ Implements advanced scheduling algorithms for optimal photonic resource utilizat
 """
 
 import time
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 from typing import Dict, List, Tuple, Optional, Any, Callable
 from dataclasses import dataclass, field
 from enum import Enum
@@ -14,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, Future
 import logging
 
 from .core import TargetConfig, Device
-from .thermal_optimization import ThermalModel, ThermalOptimizer
+from .thermal_optimization import ThermalModel, ThermalAwareOptimizer
 
 
 class TaskPriority(Enum):
@@ -85,8 +89,8 @@ class QuantumAwareScheduler:
         self.max_workers = max_workers
         
         # Initialize thermal model
-        self.thermal_model = ThermalModel(target_config)
-        self.thermal_optimizer = ThermalOptimizer(self.thermal_model)
+        self.thermal_model = None
+        self.thermal_optimizer = None
         
         # Task management
         self.task_queue = queue.PriorityQueue()

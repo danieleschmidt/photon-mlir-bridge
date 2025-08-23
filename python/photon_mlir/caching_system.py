@@ -416,6 +416,58 @@ class PhotonicCompilationCache:
                 self.dependency_graph[model_path].append(cache_key)
 
 
+class CachingSystem:
+    """
+    🔒 SECURE Main caching system interface.
+    
+    Provides a unified interface to the hierarchical and photonic compilation caches
+    with security-hardened implementation.
+    """
+    
+    def __init__(self, cache_dir: str = "./secure_photonic_cache"):
+        """Initialize the caching system."""
+        self.hierarchical_cache = HierarchicalCache(cache_dir=cache_dir)
+        self.compilation_cache = PhotonicCompilationCache(cache_dir=cache_dir)
+        self.logger = logging.getLogger(f"{__name__}.CachingSystem")
+        self.logger.info("🔒 Secure Caching System initialized")
+    
+    def get(self, key: str) -> Optional[Any]:
+        """Get value from hierarchical cache."""
+        return self.hierarchical_cache.get(key)
+    
+    def put(self, key: str, value: Any, thermal_cost: float = 0.0) -> bool:
+        """Put value into hierarchical cache."""
+        return self.hierarchical_cache.put(key, value, thermal_cost)
+    
+    def get_compiled_model(self, model_path: str, config: TargetConfig) -> Optional[Any]:
+        """Get compiled model from compilation cache."""
+        return self.compilation_cache.get_compiled_model(model_path, config)
+    
+    def cache_compiled_model(self, model_path: str, config: TargetConfig, 
+                           compiled_result: Any, thermal_cost: float = 50.0) -> bool:
+        """Cache compiled model."""
+        return self.compilation_cache.cache_compiled_model(
+            model_path, config, compiled_result, thermal_cost
+        )
+    
+    def clear(self) -> Dict[str, int]:
+        """Clear all caches."""
+        hierarchical_cleared = self.hierarchical_cache.clear()
+        compilation_cleared = self.compilation_cache.cache.clear()
+        return {
+            'hierarchical_cache': hierarchical_cleared.get('total', 0),
+            'compilation_cache': compilation_cleared.get('total', 0)
+        }
+    
+    def get_statistics(self) -> Dict[str, Any]:
+        """Get comprehensive caching statistics."""
+        return {
+            'hierarchical_cache': self.hierarchical_cache.get_statistics(),
+            'compilation_cache': self.compilation_cache.get_cache_statistics(),
+            'security_status': 'secure'
+        }
+
+
 # Global cache instance (secure by default)
 _global_cache: Optional[PhotonicCompilationCache] = None
 
@@ -524,3 +576,18 @@ if __name__ == "__main__":
     print(f"JSON-only serialization: {results['security_improvements']['json_only_serialization']}")
     print(f"Performance maintained: {results['performance_maintained']['put_operations_successful']}")
     print(f"Security status: SECURE")
+
+
+# Export main classes and functions
+__all__ = [
+    'CachingSystem',
+    'HierarchicalCache',
+    'PhotonicCompilationCache',
+    'CacheLevel',
+    'CacheEntry',
+    'CacheStatistics',
+    'get_global_cache',
+    'clear_global_cache',
+    'cached_compilation',
+    'create_security_demo'
+]

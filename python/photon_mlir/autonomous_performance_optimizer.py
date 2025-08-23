@@ -17,7 +17,11 @@ Performance Features:
 
 import time
 import asyncio
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 from typing import Dict, List, Tuple, Optional, Any, Callable, Union
 from dataclasses import dataclass, field
 from enum import Enum
@@ -38,7 +42,6 @@ import gc
 
 # ML and optimization imports
 try:
-    import numpy as np
     from scipy import optimize
     import sklearn.ensemble
     import sklearn.preprocessing
@@ -88,6 +91,18 @@ class ScalingMode(Enum):
     PREDICTIVE = "predictive"
     QUANTUM_DEMAND_AWARE = "quantum_demand_aware"
     ML_OPTIMIZED = "ml_optimized"
+
+
+class OptimizationStrategy(Enum):
+    """Strategies for performance optimization."""
+    GREEDY = "greedy"
+    GENETIC_ALGORITHM = "genetic_algorithm"
+    SIMULATED_ANNEALING = "simulated_annealing"
+    GRADIENT_DESCENT = "gradient_descent"
+    BAYESIAN_OPTIMIZATION = "bayesian_optimization"
+    REINFORCEMENT_LEARNING = "reinforcement_learning"
+    QUANTUM_ANNEALING = "quantum_annealing"
+    HYBRID_ML = "hybrid_ml"
 
 
 @dataclass
@@ -1423,6 +1438,7 @@ __all__ = [
     'OptimizationObjective',
     'CacheStrategy',
     'ScalingMode',
+    'OptimizationStrategy',
     'CacheEntry',
     'QuantumCoherenceOptimizer'
 ]

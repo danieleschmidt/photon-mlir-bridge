@@ -15,7 +15,11 @@ Key Robustness Features:
 7. Distributed system fault tolerance
 """
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 import sys
 import traceback
 import functools
@@ -44,6 +48,18 @@ class ErrorSeverity(Enum):
     CRITICAL = "critical"      # System failure, immediate attention required
     HIGH = "high"             # Major functionality impacted
     MEDIUM = "medium"         # Partial functionality impacted
+    LOW = "low"               # Minor issues, non-blocking
+    INFO = "info"             # Informational messages
+
+
+class RecoveryStrategy(Enum):
+    """Recovery strategies for error handling."""
+    RETRY = "retry"                 # Retry operation with exponential backoff
+    FALLBACK = "fallback"           # Use fallback method/resource
+    GRACEFUL_DEGRADE = "degrade"    # Reduce functionality gracefully
+    CIRCUIT_BREAK = "break"         # Break circuit to prevent cascade
+    RESTART = "restart"             # Restart component/service
+    ESCALATE = "escalate"           # Escalate to higher authority
     LOW = "low"              # Minor issues, system still functional
     INFO = "info"            # Informational, no action required
 
@@ -1111,6 +1127,9 @@ class ResourceExhaustionError(Exception):
     """Exception raised when system resources are exhausted."""
     pass
 
+
+# Alias for compatibility and clear export
+PhotonicErrorHandler = RobustErrorHandler
 
 # Example usage and testing
 def create_robustness_demo() -> Dict[str, Any]:

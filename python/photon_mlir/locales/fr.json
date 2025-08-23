@@ -1,0 +1,16 @@
+{
+  "quantum": {
+    "scheduler": {
+      "name": "Planificateur de Tâches Inspiré Quantique",
+      "description": "Planification avancée de tâches utilisant des algorithmes d'optimisation inspirés quantiques",
+      "status": {
+        "running": "En cours d'exécution",
+        "stopped": "Arrêté",
+        "error": "Erreur",
+        "initializing": "Initialisation",
+        "optimizing": "Optimisation",
+        "completed": "Terminé"
+      }
+    }
+  }
+}

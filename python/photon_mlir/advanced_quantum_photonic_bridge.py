@@ -16,7 +16,11 @@ Key Advanced Features:
 7. Production-Ready Monitoring
 """
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 import asyncio
 import threading
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
@@ -49,6 +53,7 @@ class OptimizationLevel(Enum):
     ADVANCED = "advanced"
     RESEARCH = "research"
     PRODUCTION = "production"
+    BALANCED = "balanced"  # Added for backward compatibility
 
 
 class ComputeMode(Enum):

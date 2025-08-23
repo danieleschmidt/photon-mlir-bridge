@@ -8,8 +8,33 @@ multiple quantum-photonic nodes.
 """
 
 import asyncio
-import aiohttp
-import numpy as np
+try:
+    import aiohttp
+    _AIOHTTP_AVAILABLE = True
+except ImportError:
+    _AIOHTTP_AVAILABLE = False
+    # Mock aiohttp classes for graceful degradation
+    class aiohttp:
+        class ClientSession:
+            def __init__(self, *args, **kwargs):
+                pass
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *args):
+                pass
+            async def get(self, *args, **kwargs):
+                raise RuntimeError("aiohttp not available - install with: pip install aiohttp")
+            async def post(self, *args, **kwargs):
+                raise RuntimeError("aiohttp not available - install with: pip install aiohttp")
+        class ClientTimeout:
+            def __init__(self, *args, **kwargs):
+                pass
+
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 import time
 import json
 import hashlib
@@ -26,7 +51,20 @@ import uuid
 from pathlib import Path
 import pickle
 import gzip
-import lz4.frame
+try:
+    import lz4.frame
+    _LZ4_AVAILABLE = True
+except ImportError:
+    _LZ4_AVAILABLE = False
+    # Mock lz4.frame for fallback
+    class lz4:
+        class frame:
+            @staticmethod
+            def compress(data):
+                return gzip.compress(data)  # Fallback to gzip
+            @staticmethod
+            def decompress(data):
+                return gzip.decompress(data)  # Fallback to gzip
 
 try:
     import torch

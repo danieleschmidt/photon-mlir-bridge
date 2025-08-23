@@ -16,7 +16,11 @@ Validation Features:
 
 import time
 import asyncio
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    from .numpy_fallback import get_numpy
+    np = get_numpy()
 from typing import Dict, List, Tuple, Optional, Any, Callable, Union
 from dataclasses import dataclass, field
 from enum import Enum

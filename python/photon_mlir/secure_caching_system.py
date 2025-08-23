@@ -745,6 +745,10 @@ class SecureHierarchicalCache:
             return 10240  # 10KB default estimate
 
 
+# Alias for compatibility and clear export
+SecureCachingSystem = SecureHierarchicalCache
+
+
 def create_secure_cache_demo() -> Dict[str, Any]:
     """Demonstrate secure caching system."""
     

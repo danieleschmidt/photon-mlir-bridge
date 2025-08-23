@@ -1,0 +1,16 @@
+{
+  "quantum": {
+    "scheduler": {
+      "name": "Quanteninspirierter Aufgabenplaner",
+      "description": "Erweiterte Aufgabenplanung mit quanteninspirierten Optimierungsalgorithmen",
+      "status": {
+        "running": "Läuft",
+        "stopped": "Gestoppt",
+        "error": "Fehler",
+        "initializing": "Initialisierung",
+        "optimizing": "Optimierung",
+        "completed": "Abgeschlossen"
+      }
+    }
+  }
+}
