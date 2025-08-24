@@ -6,8 +6,20 @@ import tempfile
 from pathlib import Path
 from typing import Generator, Dict, Any
 import pytest
-import torch
-import numpy as np
+# Graceful imports for optional dependencies
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None
+
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    np = None
 
 # Add src to Python path for testing
 sys.path.insert(0, str(Path(__file__).parent.parent / "python"))
@@ -30,8 +42,10 @@ def temp_dir() -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def simple_linear_model() -> torch.nn.Module:
+def simple_linear_model():
     """Creates a simple linear model for testing."""
+    if not TORCH_AVAILABLE:
+        pytest.skip("PyTorch not available")
     return torch.nn.Linear(10, 5)
 
 
