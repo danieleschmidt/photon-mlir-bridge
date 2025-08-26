@@ -803,7 +803,9 @@ class AutonomousPerformanceOptimizer:
                         import gzip
                         cached_data = gzip.decompress(cached_data)
                     
-                    result = pickle.loads(cached_data)
+                    # Use secure JSON deserialization instead of pickle for security
+                    import json
+                    result = json.loads(cached_data.decode('utf-8'))
                     
                     # Store in local cache too
                     entry = CacheEntry(
@@ -841,7 +843,8 @@ class AutonomousPerformanceOptimizer:
         # Store in distributed cache
         if self.redis_client and self.circuit_breakers['distributed_cache'].can_execute():
             try:
-                serialized_data = pickle.dumps(value)
+                # Use secure JSON serialization instead of pickle for security
+                serialized_data = json.dumps(value, default=str).encode('utf-8')
                 
                 if self.config.cache_compression:
                     import gzip

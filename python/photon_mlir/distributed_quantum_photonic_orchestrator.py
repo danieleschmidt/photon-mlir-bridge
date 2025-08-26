@@ -279,7 +279,9 @@ class DistributedTask:
         }
         
         # Compress for efficiency
-        serialized = pickle.dumps(task_dict)
+        # Use secure JSON serialization instead of pickle for security
+        import json
+        serialized = json.dumps(task_dict, default=str).encode('utf-8')
         compressed = lz4.frame.compress(serialized)
         return compressed
     
@@ -288,7 +290,9 @@ class DistributedTask:
         """Deserialize task from network data."""
         try:
             decompressed = lz4.frame.decompress(data)
-            task_dict = pickle.loads(decompressed)
+            # Use secure JSON deserialization instead of pickle for security
+            import json
+            task_dict = json.loads(decompressed.decode('utf-8'))
             
             task = cls(
                 task_id=task_dict['task_id'],
@@ -356,7 +360,9 @@ class DistributedCacheManager:
             try:
                 cached_data = self.redis_client.get(cache_key)
                 if cached_data:
-                    result = pickle.loads(lz4.frame.decompress(cached_data))
+                    # Use secure JSON deserialization instead of pickle for security
+                    import json
+                    result = json.loads(lz4.frame.decompress(cached_data).decode('utf-8'))
                     # Store in local cache for faster access
                     self._store_local(cache_key, result)
                     self.cache_stats['hits'] += 1
@@ -378,7 +384,9 @@ class DistributedCacheManager:
         # Store in distributed cache
         if self.redis_client:
             try:
-                serialized = pickle.dumps(result)
+                # Use secure JSON serialization instead of pickle for security
+                import json
+                serialized = json.dumps(result, default=str).encode('utf-8')
                 compressed = lz4.frame.compress(serialized)
                 self.redis_client.setex(cache_key, ttl_seconds, compressed)
             except Exception as e:
@@ -387,7 +395,9 @@ class DistributedCacheManager:
     def _store_local(self, cache_key: str, result: Any) -> None:
         """Store result in local cache with size management."""
         # Estimate size
-        estimated_size_mb = len(pickle.dumps(result)) / (1024 * 1024)
+        # Use secure JSON serialization instead of pickle for security
+        import json
+        estimated_size_mb = len(json.dumps(result, default=str).encode('utf-8')) / (1024 * 1024)
         
         # Evict if necessary
         while (self.cache_stats['total_size_mb'] + estimated_size_mb > self.cache_size_mb and 
@@ -407,7 +417,10 @@ class DistributedCacheManager:
         
         if lru_key in self.local_cache:
             del self.local_cache[lru_key]
-            estimated_size_mb = len(pickle.dumps(self.local_cache.get(lru_key, b''))) / (1024 * 1024)
+            # Use secure JSON serialization instead of pickle for security
+            import json
+            cached_value = self.local_cache.get(lru_key, '')
+            estimated_size_mb = len(json.dumps(cached_value, default=str).encode('utf-8')) / (1024 * 1024)
             self.cache_stats['total_size_mb'] -= estimated_size_mb
             self.cache_stats['evictions'] += 1
         
