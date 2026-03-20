@@ -1,0 +1,5 @@
+# photon-mlir-bridge uses only the Python standard library.
+# No external dependencies required.
+#
+# For development / testing:
+# pytest>=7.0
